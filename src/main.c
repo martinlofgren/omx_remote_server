@@ -1,47 +1,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>
+#include <unistd.h>  // write
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <netinet/in.h>
 #include <ev.h>
 
+#include "ev_sock.h"
+#include "main.h"
+
 #define DEBUG
 
-typedef struct ev_sock {
-  ev_io io;
-  struct ev_sock *prev;
-  struct ev_sock *next;
-} ev_sock;
-
 ev_sock listening_sock_watcher;
-
-// FUNCTION DECLARATIONS //
-
-int init_socket(const int port);
-static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents);
-static void client_sock_cb(struct ev_loop *loop, ev_io *w, int revents);
-static void link_client(ev_sock *w_);
-static void unlink_client(ev_sock *w_);
-static void broadcast(char* buf, const ssize_t len);
-
-// FUNCTION DEFINITIONS //
-
-static void link_client(ev_sock *w) {
-  w->next = listening_sock_watcher.next;
-  w->prev = &listening_sock_watcher;
-  (w->prev)->next = w;
-  if (w->next)
-    (w->next)->prev = w;
-}
-
-static void unlink_client(ev_sock *w) {
-  (w->prev)->next = w->next;
-  if (w->next)
-    (w->next)->prev = w->prev;
-}
 
 #ifdef DEBUG
 static void print_clients() {
@@ -53,12 +25,6 @@ static void print_clients() {
   printf("\n");
 }
 #endif
-
-static void broadcast(char* buf, const ssize_t len) {
-  ev_sock *tmp = &listening_sock_watcher;
-  while (NULL != (tmp = tmp->next))
-    write(tmp->io.fd, buf, (size_t) len);
-}
 
 static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #ifdef DEBUG
@@ -155,3 +121,4 @@ int main (void) {
   
   return 0;
 }
+
