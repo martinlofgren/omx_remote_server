@@ -1,3 +1,4 @@
+#define _GNU_SOURCE
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -38,6 +39,7 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #endif
   ev_sock *client_sock_watcher = malloc(sizeof(ev_sock));
   link_client(client_sock_watcher);
+  client_sock_watcher->msg_consumer = communication_init;
   ev_io_init(&client_sock_watcher->io, client_sock_cb, new_client, EV_READ);
   ev_io_start(loop, &client_sock_watcher->io);
 #ifdef DEBUG
@@ -45,40 +47,59 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #endif
 }
 
-static void client_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
+static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
+  ev_sock *w = (ev_sock*) w_;
   if (revents & EV_READ) {
 #ifdef DEBUG
-    printf("client socket read event, fd=%d\n", w->fd);
+    printf("client socket read event, fd=%d\n", w->io.fd);
 #endif
     char buffer[1024];
     ssize_t len;
-    if ((len = recv(w->fd, buffer, sizeof(buffer), 0)) <  0)
+    if ((len = recv(w->io.fd, buffer, sizeof(buffer), 0)) <  0)
       perror("recv() failed");
     if (len == 0) {
+      ev_io_stop(loop, &w->io);
+      unlink_client(w); 
+      free(&w->io);
 #ifdef DEBUG
       puts("client disconnect");
-#endif
-      ev_io_stop(loop, w);
-      unlink_client((ev_sock *)w); 
-      free(w);
-#ifdef DEBUG
       print_clients();
 #endif
-    } else {
-#ifdef DEBUG
-      char tmp[1024];
-      snprintf(tmp, len, buffer);
-      printf("received %d bytes\n%s\n", (int)len, tmp);
-#endif
-      broadcast(buffer, len);
     }
+    else
+      w->msg_consumer(w, buffer, len);
   }
   else if (revents & EV_WRITE) {
 #ifdef DEBUG
-    printf("client socket write event, fd=%d\n", w->fd);
+    printf("client socket write event, fd=%d\n", w->io.fd);
 #endif
     
   }
+}
+
+void communication_init(ev_sock *w, char *buf, const int len) {
+#ifdef DEBUG
+  char tmp[1024];
+  snprintf(tmp, len, buf);
+  printf("received %d bytes\n%s\n", (int)len, tmp);
+#endif
+  w->msg_consumer = (strcasestr(buf, "http/")) ? http_init : communication_established;
+  w->msg_consumer(w, buf, len);
+}
+
+void http_init(ev_sock *w, char *buf, const int len) {
+  puts("Wowser, browser!");
+  char *response = "HTTP/1.1 200 OK\n";
+  char *body = "Hej kanin";
+  //  sprintf(buf, "%s\n%s\0", response, body);
+  sprintf(buf, "HTTP/1.1 100 Continue\n\nHTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: 10\n\nHej Kanin!\n");
+  printf("%s", buf);
+  write(w->io.fd, buf, (size_t) len);
+}
+
+void communication_established(ev_sock *w, char *buf, const int len) {
+  puts("Communication established");
+  broadcast(buf, len);
 }
 
 int init_socket(const int port) {
