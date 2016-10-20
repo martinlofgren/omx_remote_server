@@ -19,9 +19,9 @@ void unlink_client(ev_sock *w) {
     (w->next)->prev = w->prev;
 }
 
-void broadcast(char* buf, const ssize_t len) {
+void broadcast(const char* msg, const ssize_t len) {
   ev_sock *tmp = &listening_sock_watcher;
   while (NULL != (tmp = tmp->next))
-    write(tmp->io.fd, buf, (size_t) len);
+    write(tmp->io.fd, msg, (size_t) len);
 }
 

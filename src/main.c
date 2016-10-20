@@ -1,8 +1,9 @@
-#define _GNU_SOURCE
+#define _GNU_SOURCE // strcasestr()
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <unistd.h>  // write
+#include <unistd.h>  // write()
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
@@ -10,6 +11,7 @@
 #include <ev.h>
 
 #include "ev_sock.h"
+#include "http.h"
 #include "main.h"
 
 #define DEBUG
@@ -77,29 +79,19 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
   }
 }
 
-void communication_init(ev_sock *w, char *buf, const int len) {
+void communication_init(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   char tmp[1024];
-  snprintf(tmp, len, buf);
+  snprintf(tmp, len, msg);
   printf("received %d bytes\n%s\n", (int)len, tmp);
 #endif
-  w->msg_consumer = (strcasestr(buf, "http/")) ? http_init : communication_established;
-  w->msg_consumer(w, buf, len);
+  w->msg_consumer = (is_http_connection(msg)) ? http_init : communication_established;
+  w->msg_consumer(w, msg, len);
 }
 
-void http_init(ev_sock *w, char *buf, const int len) {
-  puts("Wowser, browser!");
-  char *response = "HTTP/1.1 200 OK\n";
-  char *body = "Hej kanin";
-  //  sprintf(buf, "%s\n%s\0", response, body);
-  sprintf(buf, "HTTP/1.1 100 Continue\n\nHTTP/1.1 200 OK\nContent-Type: text/html\nContent-Length: 10\n\nHej Kanin!\n");
-  printf("%s", buf);
-  write(w->io.fd, buf, (size_t) len);
-}
-
-void communication_established(ev_sock *w, char *buf, const int len) {
+void communication_established(ev_sock *w, const char *msg, const int len) {
   puts("Communication established");
-  broadcast(buf, len);
+  broadcast(msg, len);
 }
 
 int init_socket(const int port) {
