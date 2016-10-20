@@ -1,19 +1,17 @@
 #ifndef OMX_REMOTE_SERVER_HTTP_H
 #define OMX_REMOTE_SERVER_HTTP_H
 
-typedef struct header_field {
-  char* name;
-  char* value;
-  struct header_field* next;
-} header_field;
-
 typedef struct http_request {
   struct {
     char* method;
     char* uri;
     char* version;
-  } request;
-  struct header_field header;
+  } request_line;
+  struct {
+    char* host;
+    char* from;
+    char* user_agent;
+  } headers;
   char* body;
 } http_request;
 
@@ -21,8 +19,13 @@ typedef struct http_response {
   struct {
     char* version;
     char* status;
-  } response;
-  struct header_field header;
+  } status_line;
+  struct {
+    char* date;
+    char* last_modified;
+    char* content_type;
+    int content_length;
+  } headers;
   char* body;
 } http_response;
   
