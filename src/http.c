@@ -9,6 +9,7 @@
 
 #include "ev_sock.h"
 #include "http.h"
+#include "index_html.h"
 
 int is_http_connection(const char* msg) {
   return (strcasestr(msg, "http/")) ? 1 : 0;
@@ -26,7 +27,7 @@ static void http_100_continue(http_response* res) {
 static void respond_http(http_response* res, http_request* req) {
   res->status_line.version = "HTTP/1.1";
   res->status_line.status = "200 OK";
-  res->body = "Hej Kaninj&aumlvel";
+  res->body = (char*) index_html;
   res->headers.content_type = "text/html";
   res->headers.content_length = strlen(res->body);
 }
