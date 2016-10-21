@@ -27,7 +27,7 @@ static void http_100_continue(http_response* res) {
 static void respond_http(http_response* res, http_request* req) {
   res->status_line.version = "HTTP/1.1";
   res->status_line.status = "200 OK";
-  res->body = (char*) www_index_html;
+  res->body = (char*) http_client;
   res->headers.content_type = "text/html";
   res->headers.content_length = strlen(res->body);
 }

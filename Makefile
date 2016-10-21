@@ -8,7 +8,9 @@ $(OUT)/omx_remote_server : $(SRCS) src/html.h
 	cc $(CFLAGS) $(SRCS) -o $(OUT)/omx_remote_server
 
 src/html.h : www/index.html
-	xxd -i www/index.html > src/html.h
+	cat www/index.html | tr -d "\n" | awk -f tools/stripspace.awk > http_client
+	xxd -i http_client > src/html.h
+	rm http_client
 
 .PHONY  : clean
 clean   :
