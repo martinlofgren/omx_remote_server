@@ -4,11 +4,11 @@ OUT     = build
 
 CFLAGS 	= -Wall -lev
 
-$(OUT)/omx_remote_server : $(SRCS) src/index_html.h
+$(OUT)/omx_remote_server : $(SRCS) src/html.h
 	cc $(CFLAGS) $(SRCS) -o $(OUT)/omx_remote_server
 
-src/index_html.h : src/index.html
-	xxd -i src/index.html > src/index_html.h
+src/html.h : www/index.html
+	xxd -i www/index.html > src/html.h
 
 .PHONY  : clean
 clean   :
