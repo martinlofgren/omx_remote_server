@@ -1,1 +1,15 @@
-BEGIN {RS=""} {gsub("[ ]+", " ", $0);gsub("[ ]+<", "<", $0);gsub(">[ ]+", ">", $0);print($0);}
+# AWK script to remove whitespace in html file
+
+BEGIN {
+    RS=""
+}
+
+length($0) > 1 {
+    # Strip all excess whitespace    
+    gsub("[ ]+", " ");
+    gsub("[ ]+<", "<");
+    gsub(">[ ]+", ">");
+
+    # Print the line 
+    print($0);
+}
