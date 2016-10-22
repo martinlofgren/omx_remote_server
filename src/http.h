@@ -3,7 +3,7 @@
 
 typedef struct http_request {
   struct {
-    char* method;
+    int method;
     char* uri;
     char* version;
   } request_line;

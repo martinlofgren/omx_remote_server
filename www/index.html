@@ -1,8 +1,23 @@
+<!DOCTYPE html>
+
 <html>
   <head>
+    <meta charset="UTF-8">
     <title>OMXRemote</title>
+    <style type="text/css">
+      #msg_box {
+        border: 1px solid black;
+        height: 200px;
+        width: 300px;
+      }
+    </style>
   </head>
   <body>
-    Hej kanin, he-he-hej kanin
+    <h2>omx_remote_server</h2>
+    
+    <div id="msg_box"></div>
   </body>
+  <script>
+    var sock = new WebSocket("ws://localhost:12321");
+  </script>
 </html>
