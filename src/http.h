@@ -3,14 +3,13 @@
 
 typedef struct http_request {
   struct {
-    int method;
+    char* method;
     char* uri;
     char* version;
   } request_line;
   struct {
-    char* host;
-    char* from;
-    char* user_agent;
+    char* upgrade;
+    char* sec_websocket_key;
   } headers;
   char* body;
 } http_request;

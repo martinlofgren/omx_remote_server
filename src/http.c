@@ -6,6 +6,7 @@
 #include <stdlib.h> // malloc()
 #include <sys/types.h>
 #include <ev.h>
+#include <regex.h>
 
 #include "ev_sock.h"
 #include "http.h"
@@ -16,7 +17,31 @@ int is_http_connection(const char* msg) {
 }
 
 static void parse_http(http_request* req, const char* msg) {
-  
+  regex_t request_line, header;
+  regmatch_t match[4];
+  int ret;
+  ret = regcomp(&request_line,
+		"([[:alpha:]]+)[[:space:]]*(/[[:alnum:]|/]*)[[:space:]]*(HTTP/[0-9].[0-9])",
+		REG_EXTENDED);
+  if ((ret = regexec(&request_line, msg, 4, match, 0)) == 0) {
+    req->request_line.method = strndup(msg+match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+    req->request_line.uri = strndup(msg+match[2].rm_so, match[2].rm_eo - match[2].rm_so);
+    req->request_line.version = strndup(msg+match[3].rm_so, match[3].rm_eo - match[3].rm_so);
+    printf("Method: %s\nURI: %s\nVersion: %s\n",
+	   req->request_line.method,
+	   req->request_line.uri,
+	   req->request_line.version);
+  }
+  ret = regcomp(&header, "Upgrade:[[:space:]]*(.*)", REG_EXTENDED);
+  if ((ret = regexec(&header, msg, 2, match, 0)) == 0) {
+    req->headers.upgrade = strndup(msg+match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+    printf("Upgrade: %s\n", req->headers.upgrade);
+  }
+  ret = regcomp(&header, "Sec-WebSocket-Key:[[:space:]]*(.*)", REG_EXTENDED);
+  if ((ret = regexec(&header, msg, 2, match, 0)) == 0) {
+    req->headers.sec_websocket_key = strndup(msg+match[1].rm_so, match[1].rm_eo - match[1].rm_so);
+    printf("Sec-WebSocket-Key: %s\n", req->headers.sec_websocket_key);
+  }
 }
 
 static void http_100_continue(http_response* res) {
@@ -72,9 +97,11 @@ void http_init(ev_sock *w, const char *msg, const int len) {
   leng = create_response_msg(&cont, &buf);
   printf("%s",buf);
   write(w->io.fd, buf, (size_t) leng);
+  free(buf);
 
   leng = create_response_msg(&response, &buf);
   printf("%s",buf);
   write(w->io.fd, buf, (size_t) leng);
+  free(buf);
 }
 
