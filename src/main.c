@@ -39,7 +39,7 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #ifdef DEBUG
   printf("new_client, fd:=%d\n", new_client);
 #endif
-  ev_sock *client_sock_watcher = malloc(sizeof(ev_sock));
+  ev_sock *client_sock_watcher = (ev_sock *) malloc(sizeof(ev_sock));
   link_client(client_sock_watcher);
   client_sock_watcher->msg_consumer = communication_init;
   ev_io_init(&client_sock_watcher->io, client_sock_cb, new_client, EV_READ);
@@ -58,7 +58,7 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
     char buffer[1024];
     ssize_t len;
     if ((len = recv(w->io.fd, buffer, sizeof(buffer), 0)) <  0)
-      perror("recv() failed");
+	  perror("recv() failed");
     if (len == 0) {
       ev_io_stop(loop, &w->io);
       unlink_client(w); 

@@ -1,16 +1,19 @@
 #ifndef OMX_REMOTE_SERVER_HTTP_H
 #define OMX_REMOTE_SERVER_HTTP_H
 
+typedef struct header_field {
+  char* key;
+  char* value;
+  struct header_field* next;
+} header_field;
+
 typedef struct http_request {
   struct {
     char* method;
     char* uri;
     char* version;
   } request_line;
-  struct {
-    char* upgrade;
-    char* sec_websocket_key;
-  } headers;
+  header_field* header;
   char* body;
 } http_request;
 
