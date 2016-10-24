@@ -69,8 +69,6 @@ static void parse_http(http_request* req, const char* msg) {
   while ((len = getline(&buf, &n, stream))) {
     if ((ret = regexec(&header, msg, 3, match, 0)) == 0) {
       header_ptr = (struct header_field *) malloc(sizeof(struct header_field *));
-      //      header_ptr->key = (struct char*) malloc((LEN(1) + 1) * sizeof(char));
-      //      header_ptr->value = (struct char*) malloc((LEN(2) + 1) * sizeof(char));
       BUILD_HEADER_FIELD(key, 1);
       BUILD_HEADER_FIELD(value, 2);
       header_ptr = header_ptr->next;
@@ -106,11 +104,11 @@ static int create_response_msg(http_response* res, char** msg) {
     pos += sprintf(buf+pos, "Content-Length: %d\n", res->headers.content_length);
     pos += sprintf(buf+pos, "\n");*/
 
-  struct header_field *header_ptr = req->header->next;
+  /*struct header_field *header_ptr = req->header->next;
   while (*header_ptr) {
     printf("KEY: %s   VALUE: %s\n", header_ptr->key, header_ptr->value);
     header_ptr = header_ptr->next;
-  }
+    }*/
   
   if (res->body)
     pos += sprintf(buf+pos, "%s\n", res->body);
