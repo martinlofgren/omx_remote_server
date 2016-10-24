@@ -12,7 +12,12 @@ src/html.h : www/index.html
 	tr -d "\n" | \
 	awk -f tools/stripspace.awk > http_client
 	xxd -i http_client > src/html.h
-#	rm http_client
+	rm http_client
+
+src/header_hashes.h : tools/header_hash_gen.c
+	cc tools/header_hash_gen.c -o hash_gen
+	./hash_gen > src/header_hashes.h
+	rm hash_gen
 
 .PHONY  : clean
 clean   :
