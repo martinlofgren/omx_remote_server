@@ -4,7 +4,7 @@ OUT     = build
 
 CFLAGS 	= -Wall -lev
 
-$(OUT)/omx_remote_server : $(SRCS) src/html.h
+$(OUT)/omx_remote_server : $(SRCS) src/*.h 
 	cc $(CFLAGS) $(SRCS) -o $(OUT)/omx_remote_server
 
 src/html.h : www/index.html
