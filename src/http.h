@@ -45,42 +45,6 @@ typedef struct http_request {
   char* body;
 } http_request;
 
-/*
-  accept,
-  accept_charset,
-  accept_encoding,
-  accept_language,
-  accept_datetime,
-  authorization,
-  cache_control,
-  connection,
-  cookie,
-  content_length,
-  content_md5,
-  content_type,
-  date,
-  expect,
-  forwarded,
-  from,
-  host,
-  if_match,
-  if_modified_since,
-  if_none_match,
-  if_range,
-  if_unmodified_since,
-  max_forwards,
-  origin,
-  pragma,
-  proxy_authorization,
-  range,
-  referer,
-  te,
-  user_agent,
-  upgrade,
-  via,
-  warning
-*/
-
 typedef struct http_response {
   struct {
     char* version;
@@ -95,6 +59,7 @@ typedef struct http_response {
   char* body;
 } http_response;
   
+void http_setup();
 int is_http_connection(const char* msg);
 void http_init(ev_sock *w, const char *msg, const int len);
 
