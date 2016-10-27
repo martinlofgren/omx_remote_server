@@ -39,9 +39,7 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #ifdef DEBUG
   printf("new_client, fd:=%d\n", new_client);
 #endif
-  puts("Pippi");
   ev_sock *client_sock_watcher = (ev_sock *) malloc(sizeof(ev_sock));
-  puts("Puppu");
   link_client(client_sock_watcher);
   client_sock_watcher->msg_consumer = communication_init;
   ev_io_init(&client_sock_watcher->io, client_sock_cb, new_client, EV_READ);
@@ -85,11 +83,9 @@ void communication_init(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   char tmp[1024];
   snprintf(tmp, len, msg);
-  printf("---[ received %d bytes ]---\n%s\n---[ end recieved ]---\n", (int)len, tmp);
+  printf("\n---[ received %d bytes ]---\n%s\n---[ end recieved ]---\n\n", (int)len, tmp);
 #endif
-  puts("Hipp");
   w->msg_consumer = (is_http_connection(msg)) ? http_init : communication_established;
-  puts("Häpp");
   w->msg_consumer(w, msg, len);
 }
 
@@ -125,6 +121,10 @@ int init_socket(const int port) {
 }
 
 int main (void) {
+#ifdef DEBUG
+  printf("\n\n    --------------------[ PROGRAM STARTING ]--------------------\n\n");
+#endif
+  
   struct ev_loop *loop = EV_DEFAULT;
 
   const int sock_fd = init_socket(12321);

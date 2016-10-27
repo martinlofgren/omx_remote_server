@@ -78,13 +78,10 @@ static void parse_http(http_request* req, const char* msg) {
 
   
 #define BUFSIZE 1024
-  puts("parse_1");
-  char *buf = malloc(BUFSIZE * sizeof(char));
-  puts("parse_2");
-  char *tmpbuf = malloc(80 * sizeof(char));
-  puts("parse_3");
-  char lostr[80];
-  puts("parse_4");
+  char
+    *buf = malloc(BUFSIZE * sizeof(char)),
+    *tmpbuf = malloc(80 * sizeof(char)),
+    lostr[80];
   size_t n = BUFSIZE;
   ssize_t len;
 
@@ -134,7 +131,7 @@ static void parse_http(http_request* req, const char* msg) {
   fclose(stream);
 
 #ifdef DEBUG
-  printf("---[ request parse results ]---\n");
+  printf("\n---[ request parse results ]---\n");
   printf("Method: %s\nURI: %s\nVersion: %s\n",
 	  req->request_line.method,
 	  req->request_line.uri,
@@ -177,17 +174,12 @@ static void parse_http(http_request* req, const char* msg) {
   PRINT_DEBUG(UPGRADE);
   PRINT_DEBUG(VIA);
   PRINT_DEBUG(WARNING);
-  printf("---[ end request parse results ]---\n");
+  printf("---[ end request parse results ]---\n\n");
 #endif
 }
 
-	
-static void http_100_continue(http_response* res) {
-  res->status_line.version = "HTTP/1.1";
-  res->status_line.status = "100 Continue";
-}
-
 static void respond_http(http_response* res, http_request* req) {
+  
   res->status_line.version = "HTTP/1.1";
   res->status_line.status = "200 OK";
   res->body = (char*) http_client;
@@ -196,16 +188,19 @@ static void respond_http(http_response* res, http_request* req) {
 }
 
 void create_response_msg(ev_sock *w, http_response* res) {
-  int pos=0;
+  int pos = 0;
 
   int str_len = strlen(res->status_line.version) +  strlen(res->status_line.status);
   if (res->body)
     str_len += strlen(res->body) + strlen(res->headers.content_type) + 10;
+#ifdef DEBUG
   printf("str_len: %d\n", str_len);
+#endif
 
   char *buf = malloc(1024 * sizeof(char));  // Fix calculation of message length!
   //char *buf = malloc(str_len * sizeof(char));
   //char buf[4096];
+
   pos = sprintf(buf, "%s %s\n", res->status_line.version, res->status_line.status);
   
   if (res->headers.content_type)
@@ -218,31 +213,25 @@ void create_response_msg(ev_sock *w, http_response* res) {
   if (res->body)
     pos += sprintf(buf+pos, "%s\n", res->body);
 
+#ifdef DEBUG
   printf("pos: %d\n", pos);
+#endif
   
-  printf("---[ sent response ]---\n%s---[end send response]---\n", buf);
+#ifdef DEBUG
+  printf("\n---[ sent response ]---\n%s---[end send response]---\n\n", buf);
+#endif
   write(w->io.fd, buf, (size_t) pos);
-  printf("before free(buf)\n");
   free(buf);
-  printf("after free(buf)\n");
 }
 
 void http_init(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   puts("Setting up http connection");
 #endif
-  puts("Yipp");
   http_request request;
-  puts("Yapp");
   memset(&request, 0, sizeof(http_request));
-  puts("Yopp");
   parse_http(&request, msg);
-  puts("Yäpp");
 
-  http_response cont;
-  memset(&cont, 0, sizeof(http_response));
-  http_100_continue(&cont);
-  
   http_response response;
   memset(&response, 0, sizeof(http_response));
   respond_http(&response, &request);
