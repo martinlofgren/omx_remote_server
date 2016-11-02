@@ -2,10 +2,10 @@
 SRCS   	= $(wildcard src/*.c)
 OUT     = build
 
-CFLAGS 	= -Wall -lev
+CFLAGS 	= -Wall -lev -lssl -lcrypto
 
 $(OUT)/omx_remote_server : $(SRCS) src/*.h 
-	cc $(CFLAGS) $(SRCS) -o $(OUT)/omx_remote_server
+	cc $(SRCS) -o $(OUT)/omx_remote_server $(CFLAGS)
 
 src/html.h : www/index.html
 	cat www/index.html | \

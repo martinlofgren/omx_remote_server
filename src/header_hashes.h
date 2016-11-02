@@ -32,6 +32,8 @@
 #define HTTP_UPGRADE_HASH 269
 #define HTTP_VIA_HASH 1733
 #define HTTP_WARNING_HASH 2171
+#define HTTP_SEC_WEBSOCKET_PROTOCOL_HASH 1811
+#define HTTP_SEC_WEBSOCKET_KEY_HASH 3210
 
 // Header struct names
 #define HTTP_ACCEPT_NAME accept
@@ -67,3 +69,5 @@
 #define HTTP_UPGRADE_NAME upgrade
 #define HTTP_VIA_NAME via
 #define HTTP_WARNING_NAME warning
+#define HTTP_SEC_WEBSOCKET_PROTOCOL_NAME sec_websocket_protocol
+#define HTTP_SEC_WEBSOCKET_KEY_NAME sec_websocket_key

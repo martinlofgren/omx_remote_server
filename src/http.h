@@ -41,6 +41,8 @@ typedef struct http_request {
     char* upgrade;
     char* via;
     char* warning;
+    char* sec_websocket_protocol;
+    char* sec_websocket_key;
   } header;
   char* body;
 } http_request;
@@ -54,6 +56,9 @@ typedef struct http_response {
     char* date;
     char* last_modified;
     char* content_type;
+    char* upgrade;
+    char* connection;
+    char* sec_websocket_accept;
     int content_length;
   } headers;
   char* body;
@@ -61,7 +66,7 @@ typedef struct http_response {
   
 void http_setup();
 int is_http_connection(const char* msg);
-void http_init(ev_sock *w, const char *msg, const int len);
+void http_init(ev_sock* w, const char* msg, const int len);
 
 #endif // OMX_REMOTE_SERVER_HTTP_H
 

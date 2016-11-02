@@ -44,7 +44,9 @@ char* headers[] = {
   "user_agent",
   "upgrade",
   "via",
-  "warning"
+  "warning",
+  "sec_websocket_protocol",
+  "sec_websocket_key"
 };
 
 unsigned int hash(char *str) {

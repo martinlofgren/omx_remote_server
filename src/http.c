@@ -5,9 +5,15 @@
 #include <unistd.h> // write()
 #include <stdlib.h> // malloc()
 #include <ctype.h>
-#include <sys/types.h>
-#include <ev.h>
 #include <regex.h>
+#include <sys/types.h>
+
+#include <ev.h>
+
+#include <openssl/sha.h>
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/buffer.h>
 
 #include "ev_sock.h"
 #include "http.h"
@@ -15,10 +21,47 @@
 #include "header_hashes.h"
 
 #define REGEX_REQUEST_LINE "([[:alpha:]]+)[[:space:]]*(/[[:alnum:]|/]*)[[:space:]]*(HTTP/[0-9].[0-9])"
-#define REGEX_HEADER_UPGRADE "Upgrade:[[:space:]]*(.*)"
-#define REGEX_HEADER_SEC_WEBSOCKET_KEY "Sec-WebSocket-Key:[[:space:]]*(.*)"
+//#define REGEX_HEADER_UPGRADE "Upgrade:[[:space:]]*(.*)"
+//#define REGEX_HEADER_SEC_WEBSOCKET_KEY "Sec-WebSocket-Key:[[:space:]]*(.*)"
 #define REGEX_HEADER_LINE "([[:alpha:]-]+)[[:space:]]*:[[:space:]]*(.*)"
 
+#define APPLY_REQ_LINE(func) \
+  func(ACCEPT);					\
+  func(ACCEPT_CHARSET);				\
+  func(ACCEPT_ENCODING);			\
+  func(ACCEPT_LANGUAGE);			\
+  func(ACCEPT_DATETIME);			\
+  func(AUTHORIZATION);				\
+  func(CACHE_CONTROL);				\
+  func(CONNECTION);				\
+  func(COOKIE);					\
+  func(CONTENT_LENGTH);				\
+  func(CONTENT_MD5);				\
+  func(CONTENT_TYPE);				\
+  func(DATE);					\
+  func(EXPECT);					\
+  func(FORWARDED);				\
+  func(FROM);					\
+  func(HOST);					\
+  func(IF_MATCH);				\
+  func(IF_MODIFIED_SINCE);			\
+  func(IF_NONE_MATCH);				\
+  func(IF_RANGE);				\
+  func(IF_UNMODIFIED_SINCE);			\
+  func(MAX_FORWARDS);				\
+  func(ORIGIN);					\
+  func(PRAGMA);					\
+  func(PROXY_AUTHORIZATION);			\
+  func(RANGE);					\
+  func(REFERER);				\
+  func(TE);					\
+  func(USER_AGENT);				\
+  func(UPGRADE);				\
+  func(VIA);					\
+  func(WARNING);				\
+  func(SEC_WEBSOCKET_PROTOCOL);			\
+  func(SEC_WEBSOCKET_KEY)
+  
 #define BUILD_REQ_LINE(post, n) req->request_line.post = strndup(OFFSET(msg, n), LEN(n))
 #define BUILD_HEADER_LINE(head)						\
   case HTTP ## _ ## head ## _ ## HASH:					\
@@ -32,7 +75,7 @@
 regex_t request_line, header;
 
 // http://www.cse.yorku.ca/~oz/hash.html
-unsigned int hash(char *str) {
+unsigned int hash(const char *str) {
   unsigned int hash = 5381;
   int c;
 
@@ -62,6 +105,7 @@ void locase(char* str, char* ret) {
   *ret = '\0';
 }
 
+#define BUFSIZE 1024
 static void parse_http(http_request* req, const char* msg) {
   regmatch_t match[4];
   int ret;
@@ -75,9 +119,7 @@ static void parse_http(http_request* req, const char* msg) {
     BUILD_REQ_LINE(uri, 2);
     BUILD_REQ_LINE(version, 3);
   }
-
   
-#define BUFSIZE 1024
   char
     *buf = malloc(BUFSIZE * sizeof(char)),
     *tmpbuf = malloc(80 * sizeof(char)),
@@ -90,39 +132,7 @@ static void parse_http(http_request* req, const char* msg) {
       tmpbuf = strndup(OFFSET(buf, 1), LEN(1));
       locase(tmpbuf, lostr);
       switch (hash(lostr)) {
-	BUILD_HEADER_LINE(ACCEPT);
-	BUILD_HEADER_LINE(ACCEPT_CHARSET);
-	BUILD_HEADER_LINE(ACCEPT_ENCODING);
-	BUILD_HEADER_LINE(ACCEPT_LANGUAGE);
-	BUILD_HEADER_LINE(ACCEPT_DATETIME);
-	BUILD_HEADER_LINE(AUTHORIZATION);
-	BUILD_HEADER_LINE(CACHE_CONTROL);
-	BUILD_HEADER_LINE(CONNECTION);
-	BUILD_HEADER_LINE(COOKIE);
-	BUILD_HEADER_LINE(CONTENT_LENGTH);
-	BUILD_HEADER_LINE(CONTENT_MD5);
-	BUILD_HEADER_LINE(CONTENT_TYPE);
-	BUILD_HEADER_LINE(DATE);
-	BUILD_HEADER_LINE(EXPECT);
-	BUILD_HEADER_LINE(FORWARDED);
-	BUILD_HEADER_LINE(FROM);
-	BUILD_HEADER_LINE(HOST);
-	BUILD_HEADER_LINE(IF_MATCH);
-	BUILD_HEADER_LINE(IF_MODIFIED_SINCE);
-	BUILD_HEADER_LINE(IF_NONE_MATCH);
-	BUILD_HEADER_LINE(IF_RANGE);
-	BUILD_HEADER_LINE(IF_UNMODIFIED_SINCE);
-	BUILD_HEADER_LINE(MAX_FORWARDS);
-	BUILD_HEADER_LINE(ORIGIN);
-	BUILD_HEADER_LINE(PRAGMA);
-	BUILD_HEADER_LINE(PROXY_AUTHORIZATION);
-	BUILD_HEADER_LINE(RANGE);
-	BUILD_HEADER_LINE(REFERER);
-	BUILD_HEADER_LINE(TE);
-	BUILD_HEADER_LINE(USER_AGENT);
-	BUILD_HEADER_LINE(UPGRADE);
-	BUILD_HEADER_LINE(VIA);
-	BUILD_HEADER_LINE(WARNING);
+	APPLY_REQ_LINE(BUILD_HEADER_LINE);
       }
     }
   }
@@ -140,51 +150,73 @@ static void parse_http(http_request* req, const char* msg) {
 #define PRINT_DEBUG(str)						\
   if ( req->header.HTTP ## _ ## str ## _ ## NAME )			\
     printf(#str": %s\n", req->header.HTTP ## _ ## str ## _ ## NAME )
-  
-  PRINT_DEBUG(ACCEPT);
-  PRINT_DEBUG(ACCEPT_CHARSET);
-  PRINT_DEBUG(ACCEPT_ENCODING);
-  PRINT_DEBUG(ACCEPT_LANGUAGE);
-  PRINT_DEBUG(ACCEPT_DATETIME);
-  PRINT_DEBUG(AUTHORIZATION);
-  PRINT_DEBUG(CACHE_CONTROL);
-  PRINT_DEBUG(CONNECTION);
-  PRINT_DEBUG(COOKIE);
-  PRINT_DEBUG(CONTENT_LENGTH);
-  PRINT_DEBUG(CONTENT_MD5);
-  PRINT_DEBUG(CONTENT_TYPE);
-  PRINT_DEBUG(DATE);
-  PRINT_DEBUG(EXPECT);
-  PRINT_DEBUG(FORWARDED);
-  PRINT_DEBUG(FROM);
-  PRINT_DEBUG(HOST);
-  PRINT_DEBUG(IF_MATCH);
-  PRINT_DEBUG(IF_MODIFIED_SINCE);
-  PRINT_DEBUG(IF_NONE_MATCH);
-  PRINT_DEBUG(IF_RANGE);
-  PRINT_DEBUG(IF_UNMODIFIED_SINCE);
-  PRINT_DEBUG(MAX_FORWARDS);
-  PRINT_DEBUG(ORIGIN);
-  PRINT_DEBUG(PRAGMA);
-  PRINT_DEBUG(PROXY_AUTHORIZATION);
-  PRINT_DEBUG(RANGE);
-  PRINT_DEBUG(REFERER);
-  PRINT_DEBUG(TE);
-  PRINT_DEBUG(USER_AGENT);
-  PRINT_DEBUG(UPGRADE);
-  PRINT_DEBUG(VIA);
-  PRINT_DEBUG(WARNING);
+  APPLY_REQ_LINE(PRINT_DEBUG);
   printf("---[ end request parse results ]---\n\n");
 #endif
 }
 
-static void respond_http(http_response* res, http_request* req) {
+char* websocket_accept_string(char *key) {
+  const char *magic =  "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
+  int magic_len = 36, key_len = strlen(key);
+
+  BIO *b64, *mem;
+  EVP_MD_CTX *evp_sha1;
+    
+  unsigned char *buf = malloc(SHA_DIGEST_LENGTH * sizeof(char));
+
+  evp_sha1 = EVP_MD_CTX_create();
+  EVP_DigestInit(evp_sha1, EVP_sha1());
+  EVP_DigestUpdate(evp_sha1, key, key_len);
+  EVP_DigestUpdate(evp_sha1, magic, magic_len);
+  EVP_DigestFinal(evp_sha1, buf, NULL);
+
+  mem = BIO_new(BIO_s_mem());
+  b64 = BIO_new(BIO_f_base64());
+  BIO_push(b64, mem);
+  BIO_write(b64, buf, SHA_DIGEST_LENGTH);
+  BIO_flush(b64);
   
-  res->status_line.version = "HTTP/1.1";
-  res->status_line.status = "200 OK";
-  res->body = (char*) http_client;
-  res->headers.content_type = "text/html";
-  res->headers.content_length = strlen(res->body);
+  BUF_MEM *bufferPtr;
+  BIO_get_mem_ptr(mem, &bufferPtr);
+  BIO_set_close(mem, BIO_CLOSE);
+
+  char* ret = malloc(bufferPtr->length * sizeof(char));
+  memcpy(ret, bufferPtr->data, bufferPtr->length - 1);
+  
+  free(buf);
+  BIO_free_all(mem);
+
+  return(ret);
+}
+
+static void respond_http(http_response* res, http_request* req) {
+  if (!strcasecmp("GET", req->request_line.method)) {
+    if (!strcmp("/", req->request_line.uri)) {
+      res->status_line.version = "HTTP/1.1";
+      res->status_line.status = "200 OK";
+      res->body = (char*) http_client;
+      res->headers.content_type = "text/html";
+      res->headers.content_length = strlen(res->body);
+    } else if (!strncmp("/ws", req->request_line.uri, 3)) {
+      printf("Websocket thingie\n");
+      res->status_line.version = "HTTP/1.1";
+      res->status_line.status = "101 Switching Protocols";
+      res->headers.upgrade = "websocket";
+      res->headers.connection = "Upgrade";
+      char* accept = websocket_accept_string(req->header.sec_websocket_key);
+      int accept_len = strlen(accept);
+      printf("Returned value: %s\n", accept);
+      res->headers.sec_websocket_accept = malloc(accept_len * sizeof(char));
+      memcpy(res->headers.sec_websocket_accept, accept, accept_len);
+      free(accept);
+    } else {
+      printf("404 (Får & får)\n");
+      // 404
+    }
+  }
+  else {
+    // Unimplemented method
+  }
 }
 
 void create_response_msg(ev_sock *w, http_response* res) {
@@ -197,22 +229,45 @@ void create_response_msg(ev_sock *w, http_response* res) {
   printf("str_len: %d\n", str_len);
 #endif
 
-  char *buf = malloc(1024 * sizeof(char));  // Fix calculation of message length!
-  //char *buf = malloc(str_len * sizeof(char));
-  //char buf[4096];
+  char *buf = malloc(4096 * sizeof(char));  // Fix calculation of message length!
+  //char *buf = malloc(str_len * sizeof(char)); <- Should look like this, with correct str_len
 
-  pos = sprintf(buf, "%s %s\n", res->status_line.version, res->status_line.status);
+  pos = sprintf(buf, "%s %s\r\n", res->status_line.version, res->status_line.status);
+
+  /* This macro doesn't work now because content_length is an integer. Fix!
+
+#define BUILD_HEADER(TYPE, STRING)					\
+  if (res->headers.TYPE)						\
+    pos += sprintf(buf+pos, STRING ": %s\r\n", res->headers.TYPE)
+
+  BUILD_HEADER(content_type, "Content-Type");
+  BUILD_HEADER(content_length, "Content-Length");
+  BUILD_HEADER(upgrade, "Upgrade");
+  BUILD_HEADER(connection, "Connection");
+  BUILD_HEADER(sec_websocket_accept, "Sec-WebSocket-Accept");
+  */
   
   if (res->headers.content_type)
-    pos += sprintf(buf+pos, "Content-Type: %s\n", res->headers.content_type);
+    pos += sprintf(buf+pos, "Content-Type: %s\r\n", res->headers.content_type);
   
   if (res->headers.content_length)
-    pos += sprintf(buf+pos, "Content-Length: %d\n", res->headers.content_length);
-    pos += sprintf(buf+pos, "\n");
+    pos += sprintf(buf+pos, "Content-Length: %d\r\n", res->headers.content_length);
 
+  if (res->headers.upgrade)
+    pos += sprintf(buf+pos, "Upgrade: %s\r\n", res->headers.upgrade);
+  
+  if (res->headers.connection)
+    pos += sprintf(buf+pos, "Connection: %s\r\n", res->headers.connection);
+  
+  if (res->headers.sec_websocket_accept)
+    pos += sprintf(buf+pos, "Sec-WebSocket-Accept: %s\r\n", res->headers.sec_websocket_accept);
+
+  pos += sprintf(buf+pos, "\r\n");
+  
   if (res->body)
-    pos += sprintf(buf+pos, "%s\n", res->body);
+    pos += sprintf(buf+pos, "%s\r\n", res->body);
 
+  
 #ifdef DEBUG
   printf("pos: %d\n", pos);
 #endif
@@ -225,18 +280,20 @@ void create_response_msg(ev_sock *w, http_response* res) {
 }
 
 void http_init(ev_sock *w, const char *msg, const int len) {
-#ifdef DEBUG
-  puts("Setting up http connection");
-#endif
+  puts("++++++[ enter http_init ]++++++");
   http_request request;
-  memset(&request, 0, sizeof(http_request));
-  parse_http(&request, msg);
-
   http_response response;
-  memset(&response, 0, sizeof(http_response));
-  respond_http(&response, &request);
 
-  //  create_response_msg(w, &cont);
+  memset(&request, 0, sizeof(http_request));
+  memset(&response, 0, sizeof(http_response));
+
+  parse_http(&request, msg);
+  respond_http(&response, &request);
   create_response_msg(w, &response);
+
+  // Clean up
+  free(request.header.sec_websocket_key);
+  free(response.headers.sec_websocket_accept);
+  puts("++++++[ exit http_init ]++++++");
 }
 
