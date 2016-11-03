@@ -20,9 +20,7 @@
 #include "html.h"
 #include "header_hashes.h"
 
-#define REGEX_REQUEST_LINE "([[:alpha:]]+)[[:space:]]*(/[[:alnum:]|/]*)[[:space:]]*(HTTP/[0-9].[0-9])"
-//#define REGEX_HEADER_UPGRADE "Upgrade:[[:space:]]*(.*)"
-//#define REGEX_HEADER_SEC_WEBSOCKET_KEY "Sec-WebSocket-Key:[[:space:]]*(.*)"
+#define REGEX_REQUEST_LINE "([[:alpha:]]+)[[:space:]]*(/[.[:alnum:]|/]*)[[:space:]]*(HTTP/[0-9].[0-9])"
 #define REGEX_HEADER_LINE "([[:alpha:]-]+)[[:space:]]*:[[:space:]]*(.*)"
 
 #define APPLY_REQ_LINE(func) \
@@ -65,8 +63,11 @@
 #define BUILD_REQ_LINE(post, n) req->request_line.post = strndup(OFFSET(msg, n), LEN(n))
 #define BUILD_HEADER_LINE(head)						\
   case HTTP ## _ ## head ## _ ## HASH:					\
-  req->header.HTTP ## _ ## head ## _ ## NAME = strndup(OFFSET(buf, 2), LEN(2) - 1); \
+  req->header.HTTP ## _ ## head ## _ ## NAME = strndup(OFFSET(buf, 2), LEN(2) - 2); \
   break
+#define CLEAN_HEADER_LINE(head)				\
+  if (request.header.HTTP ## _ ## head ## _ ## NAME)	\
+    free(request.header.HTTP ## _ ## head ## _ ## NAME)
 #define OFFSET(str, n) str + match[n].rm_so
 #define LEN(n) match[n].rm_eo - match[n].rm_so
 
@@ -86,7 +87,7 @@ unsigned int hash(const char *str) {
 }
 
 void http_setup() {
-  regcomp(&request_line, REGEX_REQUEST_LINE, REG_EXTENDED);  // <-- Malloc failing!
+  regcomp(&request_line, REGEX_REQUEST_LINE, REG_EXTENDED);
   regcomp(&header, REGEX_HEADER_LINE, REG_EXTENDED);
 }
 
@@ -159,16 +160,23 @@ char* websocket_accept_string(char *key) {
   const char *magic =  "258EAFA5-E914-47DA-95CA-C5AB0DC85B11";
   int magic_len = 36, key_len = strlen(key);
 
+  printf("magic:           %s\nkey [%d]:        %s\n", magic, (int)strlen(key), key);
+
   BIO *b64, *mem;
   EVP_MD_CTX *evp_sha1;
     
   unsigned char *buf = malloc(SHA_DIGEST_LENGTH * sizeof(char));
 
   evp_sha1 = EVP_MD_CTX_create();
-  EVP_DigestInit(evp_sha1, EVP_sha1());
-  EVP_DigestUpdate(evp_sha1, key, key_len);
-  EVP_DigestUpdate(evp_sha1, magic, magic_len);
-  EVP_DigestFinal(evp_sha1, buf, NULL);
+  if (EVP_DigestInit(evp_sha1, EVP_sha1()) == 0)
+    printf("EVP_DigestInit fail\n");
+  if (EVP_DigestUpdate(evp_sha1, (const void *)key, key_len) == 0)
+    printf("EVP_DigestUpdate fail\n");
+  if (EVP_DigestUpdate(evp_sha1, magic, magic_len) == 0)
+    printf("EVP_DigestUpdate fail\n");
+  if (EVP_DigestFinal(evp_sha1, buf, NULL) == 0)
+    printf("EVP_DigestFinal fail\n");
+  printf("Digest:          %s\n", buf);
 
   mem = BIO_new(BIO_s_mem());
   b64 = BIO_new(BIO_f_base64());
@@ -180,12 +188,15 @@ char* websocket_accept_string(char *key) {
   BIO_get_mem_ptr(mem, &bufferPtr);
   BIO_set_close(mem, BIO_CLOSE);
 
+  printf("Base64 encoding: %s\n", bufferPtr->data);
+
   char* ret = malloc(bufferPtr->length * sizeof(char));
-  memcpy(ret, bufferPtr->data, bufferPtr->length - 1);
+  strcpy(ret, bufferPtr->data);
   
-  free(buf);
   BIO_free_all(mem);
 
+  printf("Copied value:    %s\n", ret);
+  
   return(ret);
 }
 
@@ -204,18 +215,15 @@ static void respond_http(http_response* res, http_request* req) {
       res->headers.upgrade = "websocket";
       res->headers.connection = "Upgrade";
       char* accept = websocket_accept_string(req->header.sec_websocket_key);
-      int accept_len = strlen(accept);
-      printf("Returned value: %s\n", accept);
-      res->headers.sec_websocket_accept = malloc(accept_len * sizeof(char));
-      memcpy(res->headers.sec_websocket_accept, accept, accept_len);
-      free(accept);
+      res->headers.sec_websocket_accept = accept;
     } else {
-      printf("404 (Får & får)\n");
-      // 404
+      res->status_line.version = "HTTP/1.1";
+      res->status_line.status = "404 Not Found";
     }
   }
   else {
-    // Unimplemented method
+    res->status_line.version = "HTTP/1.1";
+    res->status_line.status = "501 Not Implemented";
   }
 }
 
@@ -292,7 +300,8 @@ void http_init(ev_sock *w, const char *msg, const int len) {
   create_response_msg(w, &response);
 
   // Clean up
-  free(request.header.sec_websocket_key);
+  //free(request.header.sec_websocket_key);
+  APPLY_REQ_LINE(CLEAN_HEADER_LINE);
   free(response.headers.sec_websocket_accept);
   puts("++++++[ exit http_init ]++++++");
 }
