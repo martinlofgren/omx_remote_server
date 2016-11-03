@@ -11,6 +11,8 @@
 #include <stdio.h>
 #include <string.h>
 
+#include "../src/hash.h"
+
 char* headers[] = {
   "accept",
   "accept_charset",
@@ -48,16 +50,6 @@ char* headers[] = {
   "sec_websocket_protocol",
   "sec_websocket_key"
 };
-
-unsigned int hash(char *str) {
-  unsigned int hash = 5381;
-  int c;
-
-  while ((c = *str++))
-    hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
-  
-  return hash % 4096;
-}
 
 void ucase(char* str, char* ret) {
   while (*ret++ = islower(*str) ? toupper(*str) : *str)

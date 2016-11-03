@@ -13,12 +13,19 @@
 #include "ev_sock.h"
 #include "http.h"
 #include "main.h"
+#include "ws.h"
 
 #define DEBUG
 
 ev_sock listening_sock_watcher;
 
 #ifdef DEBUG
+/*
+ * Function: print_clients
+ * -----------------------
+ * Helper function during development, prints current active 
+ * file descriptors.
+ */
 static void print_clients() {
   ev_sock *tmp = &listening_sock_watcher;
   printf("Active fds: ");
@@ -29,6 +36,16 @@ static void print_clients() {
 }
 #endif
 
+/*
+ * Function: listening_sock_cb
+ * ---------------------------
+ * Callback for the listening socket which sets up a new client and connects
+ * it to the event loop.
+ *
+ * loop: 
+ * w:
+ * revents:
+ */
 static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #ifdef DEBUG
   printf("listening socket event, fd=%d\n", w->fd);
@@ -41,7 +58,7 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #endif
   ev_sock *client_sock_watcher = (ev_sock *) malloc(sizeof(ev_sock));
   link_client(client_sock_watcher);
-  client_sock_watcher->msg_consumer = communication_init;
+  client_sock_watcher->msg_consumer = detect_client;
   ev_io_init(&client_sock_watcher->io, client_sock_cb, new_client, EV_READ);
   ev_io_start(loop, &client_sock_watcher->io);
 #ifdef DEBUG
@@ -49,6 +66,15 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #endif
 }
 
+/*
+ * Function: client_sock_cb
+ * ------------------------
+ * 
+ *
+ * loop:
+ * w_:
+ * revents:
+ */
 static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
   ev_sock *w = (ev_sock*) w_;
   if (revents & EV_READ) {
@@ -79,24 +105,51 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
   }
 }
 
-void communication_init(ev_sock *w, const char *msg, const int len) {
+/*
+ * Function: detect_client
+ * -----------------------
+ * 
+ *
+ * w:
+ * msg:
+ * len:
+ */
+void detect_client(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   char tmp[1024];
   snprintf(tmp, len, msg);
   printf("\n---[ received %d bytes ]---\n%s\n---[ end recieved ]---\n\n", (int)len, tmp);
 #endif
-  w->msg_consumer = (is_http_connection(msg)) ? http_init : communication_established;
+  w->msg_consumer = (is_http_connection(msg)) ? http_client : native_client;
   w->msg_consumer(w, msg, len);
 }
 
-void communication_established(ev_sock *w, const char *msg, const int len) {
+/*
+ * Function: native_client
+ * -----------------------
+ *
+ *
+ * w:
+ * msg: 
+ * len: 
+ */
+void native_client(ev_sock *w, const char *msg, const int len) {
   puts("Communication established");
   broadcast(msg, len);
 }
 
-int init_socket(const int port) {
+/*
+ * Function: setup_socket
+ * ----------------------
+ * Setup TCP server socket.
+ *
+ * port: the port to bind listening socket to
+ *
+ * Returns: listening socket file descriptor
+ */
+int setup_socket(const int port) {
 #ifdef DEBUG
-  puts ("init_socket()");
+  puts ("setup_socket()");
 #endif
   int sockfd, on = 1;
   struct sockaddr_in serv_addr;
@@ -120,6 +173,11 @@ int init_socket(const int port) {
   return(sockfd);
 }
 
+/*
+ * Function: main
+ * --------------
+ * Nothing much to say about this one.
+ */
 int main (void) {
 #ifdef DEBUG
   printf("\n\n    --------------------[ PROGRAM STARTING ]--------------------\n\n");
@@ -127,7 +185,7 @@ int main (void) {
   
   struct ev_loop *loop = EV_DEFAULT;
 
-  const int sock_fd = init_socket(12321);
+  const int sock_fd = setup_socket(12321);
   ev_io_init(&listening_sock_watcher.io, listening_sock_cb, sock_fd, EV_READ | EV_WRITE);
   ev_io_start(loop, &listening_sock_watcher.io);
 
