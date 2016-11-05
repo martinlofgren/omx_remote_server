@@ -1,11 +1,14 @@
 #include <stdlib.h> // malloc()
 #include <string.h>
 
+#include <ev.h>
+
 #include <openssl/sha.h>
 #include <openssl/bio.h>
 #include <openssl/evp.h>
 #include <openssl/buffer.h>
 
+#include "ev_sock.h"
 #include "ws.h"
 
 /*
@@ -93,3 +96,60 @@ char* ws_accept_string(const char *key) {
   return(ret);
 }
 
+void ws_parse(ws_msg* wm, const char *msg) {
+  char len, *ptr = (char*) msg;
+  unsigned char *ptr2;
+  int i;
+  
+  wm->fin = (*ptr >> 7) & 1;
+  wm->opcode = *ptr & 0x0F;
+  ptr++;
+  wm->mask = (*ptr >> 7) & 1;
+  len = *ptr & 0x7F;
+  wm->payload_len = (unsigned int) len;
+  // Do the real length thing here
+  ptr = (char*) msg + 10;
+  for (i = 0; i < 4; i++) {
+    wm->mask_key[i] = *(ptr++);
+  }
+  ptr = (char*) msg + 14;
+  wm->payload_data = malloc(sizeof(char) * len);
+  ptr2 = wm->payload_data;
+  for (i = 0; i < wm->payload_len; i++) {
+    *(ptr2++) = (*(ptr++)) ^ wm->mask_key[i % 4];
+  }
+}
+
+void ws_client(ev_sock *w, const char *msg, const int len) {
+#ifdef DEBUG
+  puts("++++++[ enter ws_client ]++++++");
+#endif
+  int i;
+  for (i = 0; i < len; i++) {
+    printf("%x ", (unsigned char) msg[i]);
+    if (i % 4 == 3)
+      printf("\n");
+  }
+  printf("\n");
+  
+  ws_msg client_says;
+  ws_parse(&client_says, msg);
+  
+  printf("---\n"
+	 "fin: %d\n"
+	 "opcode: %d\n"
+	 "mask: %d\n"
+	 "payload_len: %d\n"
+	 "payload_data: %s\n"
+	 "---\n",
+	 (int) client_says.fin,
+	 (int) client_says.opcode,
+	 (int) client_says.mask,
+	 client_says.payload_len,
+	 client_says.payload_data);
+	 
+  free(client_says.payload_data);
+#ifdef DEBUG
+  puts("++++++[ exit ws_client ]++++++");
+#endif
+}

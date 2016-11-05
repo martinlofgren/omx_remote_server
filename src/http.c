@@ -211,15 +211,16 @@ static void http_respond(http_response* res, http_request* req) {
       res->body = (char*) www_client;
       res->headers.content_type = "text/html";
       res->headers.content_length = strlen(res->body);
-    } else if (!strncmp("/ws", req->request_line.uri, 3)) {
-      printf("Websocket thingie\n");
+    }
+    else if (!strncmp("/ws", req->request_line.uri, 3)) {
       res->status_line.version = "HTTP/1.1";
       res->status_line.status = "101 Switching Protocols";
       res->headers.upgrade = "websocket";
       res->headers.connection = "Upgrade";
       char* accept = ws_accept_string(req->header.sec_websocket_key);
       res->headers.sec_websocket_accept = accept;
-    } else {
+    }
+    else {
       res->status_line.version = "HTTP/1.1";
       res->status_line.status = "404 Not Found";
     }
@@ -308,7 +309,7 @@ static void http_create_response_msg(ev_sock *w, http_response* res) {
  * ---------------------
  * Main function responsible for a http connection. 
  *
- * w:
+ * w: 
  * msg:
  * len:
  */
@@ -327,6 +328,11 @@ void http_client(ev_sock *w, const char *msg, const int len) {
   http_respond(&response, &request);
   http_create_response_msg(w, &response);
 
+  if (response.headers.sec_websocket_accept) {
+    puts("UPGRADE TO WEBSOCKET");
+    w->msg_consumer = ws_client;
+  }
+  
   // Clean up
   APPLY_REQ_LINE(CLEAN_HEADER_LINE);
   free(response.headers.sec_websocket_accept);
