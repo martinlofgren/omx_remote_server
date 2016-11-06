@@ -309,9 +309,10 @@ static void http_create_response_msg(ev_sock *w, http_response* res) {
  * ---------------------
  * Main function responsible for a http connection. 
  *
- * w: 
- * msg:
- * len:
+ * w: the sock structure called by the event loop, containing relevant file
+ *    descriptor for communication.
+ * msg: the message read from the socket
+ * len: length of msg
  */
 void http_client(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG

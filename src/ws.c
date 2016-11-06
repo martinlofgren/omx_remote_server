@@ -96,23 +96,41 @@ char* ws_accept_string(const char *key) {
   return(ret);
 }
 
+/*
+ * Function: ws_parse
+ * ------------------
+ * Parses a websocket maessage by twisting bits. 
+ *
+ * TODO: Introduce some proper error checking.
+ *
+ * wm: the websocket message structure to be populated
+ * msg: the message to be parsed
+ */
 void ws_parse(ws_msg* wm, const char *msg) {
   char len, *ptr = (char*) msg;
   unsigned char *ptr2;
-  int i;
+  int i, mask_offset;
   
   wm->fin = (*ptr >> 7) & 1;
   wm->opcode = *ptr & 0x0F;
   ptr++;
   wm->mask = (*ptr >> 7) & 1;
   len = *ptr & 0x7F;
-  wm->payload_len = (unsigned int) len;
-  // Do the real length thing here
-  ptr = (char*) msg + 10;
+  if (len < 126) {
+    wm->payload_len = (unsigned int) len;
+    mask_offset = 2;
+  }
+  else if (len == 126) {
+    // do other stuff
+  }
+  else if (len == 127) {
+    // do yet other stuff
+  }
+  ptr = (char*) msg + mask_offset;
   for (i = 0; i < 4; i++) {
     wm->mask_key[i] = *(ptr++);
   }
-  ptr = (char*) msg + 14;
+  ptr = (char*) msg + mask_offset + 4;
   wm->payload_data = malloc(sizeof(char) * len);
   ptr2 = wm->payload_data;
   for (i = 0; i < wm->payload_len; i++) {
@@ -120,6 +138,16 @@ void ws_parse(ws_msg* wm, const char *msg) {
   }
 }
 
+/*
+ * Function: ws_client
+ * -------------------
+ * Main function responsible for a websocket connection. 
+ *
+ * w: the sock structure called by the event loop, containing relevant file
+ *    descriptor for communication.
+ * msg: the message read from the socket
+ * len: length of msg
+ */
 void ws_client(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   puts("++++++[ enter ws_client ]++++++");
