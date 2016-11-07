@@ -16,22 +16,20 @@
     <h2>omx_remote_server</h2>
     
     <div id="msg_box"></div>
-    <button id="testbutton">Test</button>
+    <input type="text" id="textinput">
+    <button id="testbutton">Send</button>
   </body>
 
   <script>
-    console.log("Init websocket");
     var sock = new WebSocket("ws://localhost:12321/ws");
-    sock.onopen = function (evt) {
-      console.log("Connection est.");
-      sock.send("Hi there, server!");
-    };
 
     document.getElementById("testbutton")
             .addEventListener("click", function(e) {
-              console.log("Click");
-              sock.send("Hej därborta!");
-             }, false);
+              t = document.getElementById("textinput");
+              if (t.value) {
+                sock.send(t.value);
+              }
+            }, false);
   </script>
 </html>
 
