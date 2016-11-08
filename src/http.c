@@ -70,7 +70,7 @@
   
 #define BUILD_HEADER_LINE(field)					\
   case HTTP ## _ ## field ## _ ## HASH:					\
-  req->header.HTTP ## _ ## field ## _ ## NAME = strndup(OFFSET(buf, 2), LEN(2) - 2); \
+  req->header.HTTP ## _ ## field ## _ ## NAME = strndup(OFFSET((char*)buf, 2), LEN(2) - 2); \
   break
 #define CLEAN_HEADER_LINE(field)			\
   if (request.header.HTTP ## _ ## field ## _ ## NAME)		\

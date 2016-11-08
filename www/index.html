@@ -9,6 +9,8 @@
         border: 1px solid black;
         height: 200px;
         width: 300px;
+        padding: 5px;
+        font: 10px verdana;
       }
     </style>
   </head>
@@ -22,14 +24,24 @@
 
   <script>
     var sock = new WebSocket("ws://localhost:12321/ws");
+    var testButton = document.getElementById("testbutton");
 
-    document.getElementById("testbutton")
-            .addEventListener("click", function(e) {
-              t = document.getElementById("textinput");
-              if (t.value) {
-                sock.send(t.value);
-              }
-            }, false);
+    testButton.addEventListener("click", function(e) {
+      t = document.getElementById("textinput");
+      if (t.value) {
+        sock.send(t.value);
+      }
+    }, false);
+
+    sock.addEventListener("message", function(e) {
+      console.log("Got message!");
+      var parent = document.getElementById("msg_box");
+      var p = document.createElement("p");
+      var newContent = document.createTextNode(e.data);
+      p.appendChild(newContent);
+      parent.appendChild(p);
+    }, false);
+    
   </script>
 </html>
 

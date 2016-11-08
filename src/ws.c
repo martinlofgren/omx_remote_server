@@ -1,3 +1,4 @@
+#include <unistd.h> // write()
 #include <stdlib.h> // malloc()
 #include <string.h>
 
@@ -88,7 +89,7 @@ char* ws_accept_string(const char *key) {
     perror("Could not allocate memory");
     return(NULL);
   }
-  strcpy(ret, bufferPtr->data);
+  strcpy(ret, bufferPtr->data);  // <<<--- REWRITE USING memcpy() ?
 
   // And free all allocated resources.
   BIO_free_all(mem);
@@ -102,13 +103,14 @@ char* ws_accept_string(const char *key) {
  * Parses a websocket maessage by twisting bits. 
  *
  * TODO: Introduce some proper error checking.
+ *       Should return just the decoded msg instead of structure?
  *
  * wm: the websocket message structure to be populated
  * msg: the message to be parsed
  */
 void ws_parse(ws_msg* wm, const char *msg) {
   char len, *ptr = (char*) msg;
-  unsigned char *ptr2;
+  char *ptr2;
   int i, mask_offset;
   
   wm->fin = (*ptr >> 7) & 1;
@@ -131,11 +133,54 @@ void ws_parse(ws_msg* wm, const char *msg) {
     wm->mask_key[i] = *(ptr++);
   }
   ptr = (char*) msg + mask_offset + 4;
-  wm->payload_data = malloc(sizeof(char) * len);
+  wm->payload_data = malloc(sizeof(char) * len + 1);
   ptr2 = wm->payload_data;
   for (i = 0; i < wm->payload_len; i++) {
     *(ptr2++) = (*(ptr++)) ^ wm->mask_key[i % 4];
   }
+  *ptr2 = 0;
+}
+
+/*
+ * Function: ws_encode
+ * -------------------
+ * Encode a websocket maessage by twisting bits. 
+ *
+ * TODO: Introduce some proper error checking.
+ *
+ * msg: the message to be encoded
+ * enc_msg: char pointer which, when the function returns, will contain the
+ *          adress to the encoded websocket frame. The string has been 
+ *          allocated with malloc, and it is the responsibility of the caller
+ *          to free it after use
+ *
+ * Returns: length of encoded message
+ */
+#define MASK_LENGTH 4
+int ws_encode(const char *msg, char **enc_msg) {
+  // Decide on total length of message
+  int
+    ctrl_len,
+    len = strlen(msg);
+  
+  if (len < 126) {
+    ctrl_len = 2;
+  }
+  else if (len == 126) {
+    ctrl_len = 8;
+  }
+  else if (len == 127) {
+    ctrl_len = 14;
+  }
+
+  // Allocate return string and build encoded websocket frame
+  *enc_msg = malloc((len + ctrl_len) * sizeof(char));
+  char *cp = *enc_msg;
+  
+  *(cp++) = 0x80 | 0x01;            // (FIN = 1)  | (opcode = 0x01
+  *(cp++) = 0x00 | len;             // (MASK = 0) | (payload length)
+  memcpy(cp, msg, len);
+  return (len + ctrl_len);
 }
 
 /*
@@ -175,7 +220,21 @@ void ws_client(ev_sock *w, const char *msg, const int len) {
 	 (int) client_says.mask,
 	 client_says.payload_len,
 	 client_says.payload_data);
-	 
+
+  char* encoded = NULL;
+  int enc_len;
+  enc_len = ws_encode(client_says.payload_data, &encoded);
+  printf("enc_len: %d\n", enc_len);
+  for (i = 0; i < enc_len; i++) {
+    printf("%x ", (unsigned char) encoded[i]);
+    if (i % 4 == 3)
+      printf("\n");
+  }
+  printf("\n");
+
+  write(w->io.fd, encoded, enc_len);
+
+  free(encoded);
   free(client_says.payload_data);
 #ifdef DEBUG
   puts("++++++[ exit ws_client ]++++++");
