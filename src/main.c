@@ -56,9 +56,11 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 #ifdef DEBUG
   printf("new_client, fd:=%d\n", new_client);
 #endif
+  // Allocate sock structure and initialize it
   ev_sock *client_sock_watcher = (ev_sock *) malloc(sizeof(ev_sock));
   link_client(client_sock_watcher);
   client_sock_watcher->msg_consumer = detect_client;
+  client_sock_watcher->type = CLIENT_UNKNOWN;
   ev_io_init(&client_sock_watcher->io, client_sock_cb, new_client, EV_READ);
   ev_io_start(loop, &client_sock_watcher->io);
 #ifdef DEBUG
@@ -69,11 +71,14 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
 /*
  * Function: client_sock_cb
  * ------------------------
- * 
+ * The callback associated with all clients. Does the standard reading of the
+ * socket and checking for disconnected clients; if connected client is
+ * sending data, this is handled by associated function.
  *
- * loop:
- * w_:
- * revents:
+ * loop: the main libev event loop
+ * w_: the ev_io struct, which is casted to ev_sock to get hold of function
+ *     pointer and more
+ * revents: 
  */
 static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
   ev_sock *w = (ev_sock*) w_;
@@ -108,11 +113,12 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
 /*
  * Function: detect_client
  * -----------------------
- * 
+ * Simple init function for newly connected clients to decide whether the
+ * client is a native client or http -> ws client.
  *
- * w:
- * msg:
- * len:
+ * w: the ev_sock structure which triggered the callback
+ * msg: received message
+ * len: length of msg
  */
 void detect_client(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
@@ -127,14 +133,14 @@ void detect_client(ev_sock *w, const char *msg, const int len) {
 /*
  * Function: native_client
  * -----------------------
+ * Function to handle incoming messages from native clients.
  *
- *
- * w:
- * msg: 
- * len: 
+ * w: the ev_sock structure which triggered the callback
+ * msg: received message
+ * len: length of msg
  */
 void native_client(ev_sock *w, const char *msg, const int len) {
-  puts("Communication established");
+  puts("Native client connected");
   broadcast(msg, len);
 }
 
