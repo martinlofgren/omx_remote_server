@@ -1,6 +1,8 @@
 #include <unistd.h> // write()
 #include <stdlib.h> // malloc()
 #include <string.h>
+#include <sys/socket.h>
+#include <sys/types.h>
 
 #include <ev.h>
 
@@ -232,8 +234,10 @@ void ws_client(ev_sock *w, const char *msg, const int len) {
   }
   printf("\n");
 
-  write(w->io.fd, encoded, enc_len);
-
+  if (send(w->io.fd, encoded, (size_t) enc_len, MSG_DONTWAIT) < 0) {
+    perror("send() fail");
+  }
+  
   free(encoded);
   free(client_says.payload_data);
 #ifdef DEBUG

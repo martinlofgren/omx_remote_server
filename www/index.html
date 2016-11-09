@@ -34,14 +34,13 @@
     }, false);
 
     sock.addEventListener("message", function(e) {
-      console.log("Got message!");
+      console.log("Got message: " + e.data);
       var parent = document.getElementById("msg_box");
       var p = document.createElement("p");
       var newContent = document.createTextNode(e.data);
       p.appendChild(newContent);
       parent.appendChild(p);
     }, false);
-    
   </script>
 </html>
 
