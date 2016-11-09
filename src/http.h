@@ -66,7 +66,8 @@ typedef struct http_response {
   
 void http_setup();
 int is_http_connection(const char* msg);
-void http_client(ev_sock* w, const char* msg, const int len);
+void http_client_consumer(ev_sock* w, const char* msg, const int len);
+void http_client_producer(ev_sock* w, const char* msg, const int len);
 
 #endif // OMX_REMOTE_SERVER_HTTP_H
 

@@ -186,8 +186,8 @@ int ws_encode(const char *msg, char **enc_msg) {
 }
 
 /*
- * Function: ws_client
- * -------------------
+ * Function: ws_client_consumer
+ * ----------------------------
  * Main function responsible for a websocket connection. 
  *
  * w: the sock structure called by the event loop, containing relevant file
@@ -195,7 +195,7 @@ int ws_encode(const char *msg, char **enc_msg) {
  * msg: the message read from the socket
  * len: length of msg
  */
-void ws_client(ev_sock *w, const char *msg, const int len) {
+void ws_client_consumer(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   puts("++++++[ enter ws_client ]++++++");
 #endif
@@ -243,4 +243,18 @@ void ws_client(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   puts("++++++[ exit ws_client ]++++++");
 #endif
+}
+
+/*
+ * Function: ws_client_producer
+ * ----------------------------
+ * Main function responsible for a websocket connection. 
+ *
+ * w: the sock structure called by the event loop, containing relevant file
+ *    descriptor for communication.
+ * msg: the message read from the socket
+ * len: length of msg
+ */
+void ws_client_producer(ev_sock *w, const char *msg, const int len) {
+
 }

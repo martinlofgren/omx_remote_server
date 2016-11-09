@@ -11,7 +11,8 @@ typedef struct ev_sock {
   ev_io io;
   struct ev_sock *prev;
   struct ev_sock *next;
-  void (*msg_consumer)(struct ev_sock *w, const char* msg, const int len);
+  void (*msg_consume)(struct ev_sock *w, const char* msg, const int len);
+  void (*msg_produce)(struct ev_sock *w, const char* msg, const int len);
   char type;
 } ev_sock;
 

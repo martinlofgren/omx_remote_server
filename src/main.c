@@ -59,7 +59,7 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
   // Allocate sock structure and initialize it
   ev_sock *client_sock_watcher = (ev_sock *) malloc(sizeof(ev_sock));
   link_client(client_sock_watcher);
-  client_sock_watcher->msg_consumer = detect_client;
+  client_sock_watcher->msg_consume = detect_client;
   client_sock_watcher->type = CLIENT_UNKNOWN;
   ev_io_init(&client_sock_watcher->io, client_sock_cb, new_client, EV_READ);
   ev_io_start(loop, &client_sock_watcher->io);
@@ -100,7 +100,7 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
 #endif
     }
     else
-      w->msg_consumer(w, buffer, len);
+      w->msg_consume(w, buffer, len);
   }
   else if (revents & EV_WRITE) {
 #ifdef DEBUG
@@ -114,7 +114,8 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
  * Function: detect_client
  * -----------------------
  * Simple init function for newly connected clients to decide whether the
- * client is a native client or http -> ws client.
+ * client is a native client or http -> ws client; then invoke associated
+ * function.
  *
  * w: the ev_sock structure which triggered the callback
  * msg: received message
@@ -126,20 +127,26 @@ void detect_client(ev_sock *w, const char *msg, const int len) {
   snprintf(tmp, len, msg);
   printf("\n---[ received %d bytes ]---\n%s\n---[ end recieved ]---\n\n", (int)len, tmp);
 #endif
-  w->msg_consumer = (is_http_connection(msg)) ? http_client : native_client;
-  w->msg_consumer(w, msg, len);
+  if (is_http_connection(msg)) {
+    w->msg_consume = http_client_consumer;
+    w->type = CLIENT_HTTP;
+  } else {
+    w->msg_consume = native_client_consumer;
+    w->type = CLIENT_NATIVE & CLIENT_BROADCAST_ENABLE;
+  }
+  w->msg_consume(w, msg, len);
 }
 
 /*
- * Function: native_client
- * -----------------------
+ * Function: native_client_consumer
+ * --------------------------------
  * Function to handle incoming messages from native clients.
  *
  * w: the ev_sock structure which triggered the callback
  * msg: received message
  * len: length of msg
  */
-void native_client(ev_sock *w, const char *msg, const int len) {
+void native_client_consumer(ev_sock *w, const char *msg, const int len) {
   puts("Native client connected");
   broadcast(msg, len);
 }

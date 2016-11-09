@@ -305,8 +305,8 @@ static void http_create_response_msg(ev_sock *w, http_response* res) {
 }
 
 /*
- * Function: http_client
- * ---------------------
+ * Function: http_client_consumer
+ * ------------------------------
  * Main function responsible for a http connection. 
  *
  * w: the sock structure called by the event loop, containing relevant file
@@ -314,7 +314,7 @@ static void http_create_response_msg(ev_sock *w, http_response* res) {
  * msg: the message read from the socket
  * len: length of msg
  */
-void http_client(ev_sock *w, const char *msg, const int len) {
+void http_client_consumer(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   puts("++++++[ enter http_client ]++++++");
 #endif
@@ -331,7 +331,7 @@ void http_client(ev_sock *w, const char *msg, const int len) {
 
   if (response.headers.sec_websocket_accept) {
     puts("UPGRADE TO WEBSOCKET");
-    w->msg_consumer = ws_client;
+    w->msg_consume = ws_client_consumer;
   }
   
   // Clean up
