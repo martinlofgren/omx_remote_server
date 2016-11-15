@@ -332,6 +332,7 @@ void http_client_consumer(ev_sock *w, const char *msg, const int len) {
   if (response.headers.sec_websocket_accept) {
     puts("UPGRADE TO WEBSOCKET");
     w->msg_consume = ws_client_consumer;
+    w->msg_produce = ws_client_producer;
   }
   
   // Clean up
@@ -343,3 +344,16 @@ void http_client_consumer(ev_sock *w, const char *msg, const int len) {
 #endif
 }
 
+/*
+ * Function: http_client_producer
+ * ------------------------------
+ * Main function responsible for a http connection. 
+ *
+ * w: the sock structure called by the event loop, containing relevant file
+ *    descriptor for communication.
+ * msg: the message read from the socket
+ * len: length of msg
+ */
+void http_client_producer(ev_sock *w, const char *msg, const int len) {
+
+}

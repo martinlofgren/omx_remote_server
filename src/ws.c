@@ -159,11 +159,9 @@ void ws_parse(ws_msg* wm, const char *msg) {
  * Returns: length of encoded message
  */
 #define MASK_LENGTH 4
-int ws_encode(const char *msg, char **enc_msg) {
+int ws_encode(const char *msg, const int len, char **enc_msg) {
   // Decide on total length of message
-  int
-    ctrl_len,
-    len = strlen(msg);
+  int ctrl_len;
   
   if (len < 126) {
     ctrl_len = 2;
@@ -223,22 +221,8 @@ void ws_client_consumer(ev_sock *w, const char *msg, const int len) {
 	 client_says.payload_len,
 	 client_says.payload_data);
 
-  char* encoded = NULL;
-  int enc_len;
-  enc_len = ws_encode(client_says.payload_data, &encoded);
-  printf("enc_len: %d\n", enc_len);
-  for (i = 0; i < enc_len; i++) {
-    printf("%x ", (unsigned char) encoded[i]);
-    if (i % 4 == 3)
-      printf("\n");
-  }
-  printf("\n");
-
-  if (send(w->io.fd, encoded, (size_t) enc_len, MSG_DONTWAIT) < 0) {
-    perror("send() fail");
-  }
+  broadcast(client_says.payload_data, client_says.payload_len);
   
-  free(encoded);
   free(client_says.payload_data);
 #ifdef DEBUG
   puts("++++++[ exit ws_client ]++++++");
@@ -256,5 +240,23 @@ void ws_client_consumer(ev_sock *w, const char *msg, const int len) {
  * len: length of msg
  */
 void ws_client_producer(ev_sock *w, const char *msg, const int len) {
+  printf("ws_client_produce event: %s\n", msg);
 
+
+  char* encoded = NULL;
+  int enc_len, i;
+  enc_len = ws_encode(msg, len, &encoded);
+  printf("enc_len: %d\n", enc_len);
+  for (i = 0; i < enc_len; i++) {
+    printf("%x ", (unsigned char) encoded[i]);
+    if (i % 4 == 3)
+      printf("\n");
+  }
+  printf("\n");
+
+  if (send(w->io.fd, encoded, (size_t) enc_len, MSG_DONTWAIT) < 0) {
+    perror("send() fail");
+  }
+  
+  free(encoded);
 }

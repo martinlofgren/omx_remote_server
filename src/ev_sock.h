@@ -13,7 +13,6 @@ typedef struct ev_sock {
   struct ev_sock *next;
   void (*msg_consume)(struct ev_sock *w, const char* msg, const int len);
   void (*msg_produce)(struct ev_sock *w, const char* msg, const int len);
-  char type;
 } ev_sock;
 
 void link_client(ev_sock *w_);

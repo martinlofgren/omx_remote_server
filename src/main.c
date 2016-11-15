@@ -60,7 +60,7 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
   ev_sock *client_sock_watcher = (ev_sock *) malloc(sizeof(ev_sock));
   link_client(client_sock_watcher);
   client_sock_watcher->msg_consume = detect_client;
-  client_sock_watcher->type = CLIENT_UNKNOWN;
+  client_sock_watcher->msg_produce = NULL;
   ev_io_init(&client_sock_watcher->io, client_sock_cb, new_client, EV_READ);
   ev_io_start(loop, &client_sock_watcher->io);
 #ifdef DEBUG
@@ -129,10 +129,10 @@ void detect_client(ev_sock *w, const char *msg, const int len) {
 #endif
   if (is_http_connection(msg)) {
     w->msg_consume = http_client_consumer;
-    w->type = CLIENT_HTTP;
+    w->msg_produce = NULL;
   } else {
     w->msg_consume = native_client_consumer;
-    w->type = CLIENT_NATIVE & CLIENT_BROADCAST_ENABLE;
+    w->msg_produce = native_client_producer;
   }
   w->msg_consume(w, msg, len);
 }
@@ -147,8 +147,22 @@ void detect_client(ev_sock *w, const char *msg, const int len) {
  * len: length of msg
  */
 void native_client_consumer(ev_sock *w, const char *msg, const int len) {
-  puts("Native client connected");
+  puts("Incoming message from native client");
   broadcast(msg, len);
+}
+
+/*
+ * Function: native_client_producer
+ * --------------------------------
+ * Function to handle outgoing messages to native clients.
+ *
+ * w: the ev_sock structure which triggered the callback
+ * msg: received message
+ * len: length of msg
+ */
+void native_client_producer(ev_sock *w, const char *msg, const int len) {
+  printf("native_client_produce event: %s\n", msg);
+  write(w->io.fd, msg, (size_t) len);
 }
 
 /*

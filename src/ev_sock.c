@@ -21,7 +21,9 @@ void unlink_client(ev_sock *w) {
 
 void broadcast(const char* msg, const ssize_t len) {
   ev_sock *tmp = &listening_sock_watcher;
-  while (NULL != (tmp = tmp->next))
-    write(tmp->io.fd, msg, (size_t) len);
+  while (NULL != (tmp = tmp->next)) {
+    if (tmp->msg_produce)
+      tmp->msg_produce(tmp, msg, len);
+  }
 }
 
