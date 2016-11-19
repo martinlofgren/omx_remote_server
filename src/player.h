@@ -3,8 +3,9 @@
 
 #include "ev_sock.h"
 
-#define PLAYING 0x01
-#define PAUSED  0x02
+#define PLAYER_STATUS_STOPPED 0x00
+#define PLAYER_STATUS_PLAYING 0x01
+#define PLAYER_STATUS_PAUSED  0x02
 
 typedef struct player {
   unsigned char status;

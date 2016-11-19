@@ -64,7 +64,7 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
   if (client_sock_watcher == NULL)
     perror("malloc() failed");
   link_client(client_sock_watcher);
-  client_sock_watcher->msg_consume = detect_client;
+  client_sock_watcher->msg_consume = NULL;
   client_sock_watcher->msg_produce = NULL;
   ev_io_init(&client_sock_watcher->io, client_sock_cb, new_client, EV_READ);
   ev_io_start(loop, &client_sock_watcher->io);
@@ -91,7 +91,7 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
 #ifdef DEBUG
   printf("client socket read event, fd=%d\n", w->io.fd);
 #endif
-  char buffer[1024];
+  char buffer[4096];
   ssize_t len;
     
   // Read the socket
@@ -100,8 +100,9 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
 
   // Client disconnect, stop io watcher and clean up
   if (len == 0) {
-    ev_io_stop(loop, &w->io);
     unlink_client(w); 
+    close(w->io.fd);
+    ev_io_stop(loop, &w->io);
     free(w);
 #ifdef DEBUG
     puts("client disconnect");
@@ -109,38 +110,44 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
 #endif
   }
 
-  // Actuall data read, use associated function to digest the message
+  // Actual data read, use associated function to digest the message
   else {
-    buffer[len] = 0;
-    w->msg_consume(w, buffer, len);
+    if (w->msg_consume) {
+      buffer[len] = 0;
+      w->msg_consume(w, buffer, len);
+    }
+    else {
+      if (is_http_connection(buffer)) {
+	w->msg_consume = http_client_consumer;
+	w->msg_produce = NULL;
+      }
+      else if (is_native_connection(buffer)) {
+	w->msg_consume = native_client_consumer;
+	w->msg_produce = native_client_producer;
+      }
+      else {
+	unlink_client(w);
+	close(w->io.fd);
+	ev_io_stop(loop, &w->io);
+	free(w);
+      }
+      buffer[len] = 0;
+      w->msg_consume(w, buffer, len);
+    }
   }
 }
 
 /*
- * Function: detect_client
- * -----------------------
- * Simple init function for newly connected clients to decide whether the
- * client is a native client or http -> ws client; then invoke associated
- * function.
+ * Function: is_native_connection
+ * ----------------------------
+ * Check if connection is a native client.
  *
- * w: the ev_sock structure which triggered the callback
- * msg: received message
- * len: length of msg
+ * msg: the string to be matched against
+ *
+ * Returns: 1 if match, 0 otherwise.
  */
-void detect_client(ev_sock *w, const char *msg, const int len) {
-#ifdef DEBUG
-  char tmp[1024];
-  snprintf(tmp, len, msg);
-  printf("\n---[ received %d bytes ]---\n%s\n---[ end recieved ]---\n\n", (int)len, tmp);
-#endif
-  if (is_http_connection(msg)) {
-    w->msg_consume = http_client_consumer;
-    w->msg_produce = NULL;
-  } else {
-    w->msg_consume = native_client_consumer;
-    w->msg_produce = native_client_producer;
-  }
-  w->msg_consume(w, msg, len);
+int is_native_connection(const char* msg) {
+  return (strncmp(msg, "hi", 2) == 0) ? 1 : 0; // Change to other handshake message
 }
 
 /*
