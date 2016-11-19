@@ -13,6 +13,9 @@
 
 #include "ev_sock.h"
 #include "ws.h"
+#include "player.h"
+
+#define DEBUG
 
 /*
  * Function: ws_accept_string
@@ -148,9 +151,8 @@ void ws_parse(ws_msg* wm, const char *msg) {
  * -------------------
  * Encode a websocket maessage by twisting bits. 
  *
- * TODO: Introduce some proper error checking.
- *
  * msg: the message to be encoded
+ * len: length of msg
  * enc_msg: char pointer which, when the function returns, will contain the
  *          adress to the encoded websocket frame. The string has been 
  *          allocated with malloc, and it is the responsibility of the caller
@@ -168,13 +170,17 @@ int ws_encode(const char *msg, const int len, char **enc_msg) {
   }
   else if (len == 126) {
     ctrl_len = 8;
+    // And some more things
   }
   else if (len == 127) {
     ctrl_len = 14;
+    // And some more things
   }
 
   // Allocate return string and build encoded websocket frame
   *enc_msg = malloc((len + ctrl_len) * sizeof(char));
+  if (enc_msg == NULL)
+    perror ("malloc() failed");
   char *cp = *enc_msg;
   
   *(cp++) = 0x80 | 0x01;            // (FIN = 1)  | (opcode = 0x01
@@ -186,7 +192,7 @@ int ws_encode(const char *msg, const int len, char **enc_msg) {
 /*
  * Function: ws_client_consumer
  * ----------------------------
- * Main function responsible for a websocket connection. 
+ *  
  *
  * w: the sock structure called by the event loop, containing relevant file
  *    descriptor for communication.
@@ -197,33 +203,13 @@ void ws_client_consumer(ev_sock *w, const char *msg, const int len) {
 #ifdef DEBUG
   puts("++++++[ enter ws_client ]++++++");
 #endif
-  int i;
-  for (i = 0; i < len; i++) {
-    printf("%x ", (unsigned char) msg[i]);
-    if (i % 4 == 3)
-      printf("\n");
-  }
-  printf("\n");
   
-  ws_msg client_says;
-  ws_parse(&client_says, msg);
-  
-  printf("---\n"
-	 "fin: %d\n"
-	 "opcode: %d\n"
-	 "mask: %d\n"
-	 "payload_len: %d\n"
-	 "payload_data: %s\n"
-	 "---\n",
-	 (int) client_says.fin,
-	 (int) client_says.opcode,
-	 (int) client_says.mask,
-	 client_says.payload_len,
-	 client_says.payload_data);
+  ws_msg parsed_msg;
+  ws_parse(&parsed_msg, msg);
 
-  broadcast(client_says.payload_data, client_says.payload_len);
+  player_control(w, parsed_msg.payload_data, parsed_msg.payload_len);
   
-  free(client_says.payload_data);
+  free(parsed_msg.payload_data);
 #ifdef DEBUG
   puts("++++++[ exit ws_client ]++++++");
 #endif
@@ -232,7 +218,7 @@ void ws_client_consumer(ev_sock *w, const char *msg, const int len) {
 /*
  * Function: ws_client_producer
  * ----------------------------
- * Main function responsible for a websocket connection. 
+ * 
  *
  * w: the sock structure called by the event loop, containing relevant file
  *    descriptor for communication.
@@ -240,19 +226,15 @@ void ws_client_consumer(ev_sock *w, const char *msg, const int len) {
  * len: length of msg
  */
 void ws_client_producer(ev_sock *w, const char *msg, const int len) {
-  printf("ws_client_produce event: %s\n", msg);
-
-
+#ifdef DEBUG
+  char tmp[1024];
+  snprintf(tmp, len, msg);
+  printf("ws_client_produce event: %s\n", tmp);
+#endif
+  
   char* encoded = NULL;
-  int enc_len, i;
+  int enc_len;
   enc_len = ws_encode(msg, len, &encoded);
-  printf("enc_len: %d\n", enc_len);
-  for (i = 0; i < enc_len; i++) {
-    printf("%x ", (unsigned char) encoded[i]);
-    if (i % 4 == 3)
-      printf("\n");
-  }
-  printf("\n");
 
   if (send(w->io.fd, encoded, (size_t) enc_len, MSG_DONTWAIT) < 0) {
     perror("send() fail");

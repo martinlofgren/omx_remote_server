@@ -1,6 +1,9 @@
 #ifndef OMX_REMOTE_SERVER_EV_SOCK_H
 #define OMX_REMOTE_SERVER_EV_SOCK_H
 
+#include <ev.h>
+#include <sys/types.h>
+
 #define CLIENT_UNKNOWN          0x00
 #define CLIENT_BROADCAST_ENABLE 0x01
 #define CLIENT_NATIVE           0x02

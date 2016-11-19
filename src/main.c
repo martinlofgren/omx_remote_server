@@ -14,10 +14,13 @@
 #include "http.h"
 #include "main.h"
 #include "ws.h"
+#include "player.h"
 
 #define DEBUG
 
+// Global variables
 ev_sock listening_sock_watcher;
+player player_info;
 
 #ifdef DEBUG
 /*
@@ -42,8 +45,8 @@ static void print_clients() {
  * Callback for the listening socket which sets up a new client and connects
  * it to the event loop.
  *
- * loop: 
- * w:
+ * loop: the main libev event loop
+ * w: the libev io struct
  * revents:
  */
 static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
@@ -57,7 +60,9 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
   printf("new_client, fd:=%d\n", new_client);
 #endif
   // Allocate sock structure and initialize it
-  ev_sock *client_sock_watcher = (ev_sock *) malloc(sizeof(ev_sock));
+  ev_sock *client_sock_watcher = malloc(sizeof(ev_sock));
+  if (client_sock_watcher == NULL)
+    perror("malloc() failed");
   link_client(client_sock_watcher);
   client_sock_watcher->msg_consume = detect_client;
   client_sock_watcher->msg_produce = NULL;
@@ -76,37 +81,38 @@ static void listening_sock_cb(struct ev_loop *loop, ev_io *w, int revents) {
  * sending data, this is handled by associated function.
  *
  * loop: the main libev event loop
- * w_: the ev_io struct, which is casted to ev_sock to get hold of function
+ * w_: the libev io struct, which is casted to ev_sock to get hold of function
  *     pointer and more
  * revents: 
  */
 static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
   ev_sock *w = (ev_sock*) w_;
-  if (revents & EV_READ) {
+
 #ifdef DEBUG
-    printf("client socket read event, fd=%d\n", w->io.fd);
+  printf("client socket read event, fd=%d\n", w->io.fd);
 #endif
-    char buffer[1024];
-    ssize_t len;
-    if ((len = recv(w->io.fd, buffer, sizeof(buffer), 0)) <  0)
-	  perror("recv() failed");
-    if (len == 0) {
-      ev_io_stop(loop, &w->io);
-      unlink_client(w); 
-      free(w);
-#ifdef DEBUG
-      puts("client disconnect");
-      print_clients();
-#endif
-    }
-    else
-      w->msg_consume(w, buffer, len);
-  }
-  else if (revents & EV_WRITE) {
-#ifdef DEBUG
-    printf("client socket write event, fd=%d\n", w->io.fd);
-#endif
+  char buffer[1024];
+  ssize_t len;
     
+  // Read the socket
+  if ((len = recv(w->io.fd, buffer, sizeof(buffer), 0)) <  0)
+    perror("recv() failed");
+
+  // Client disconnect, stop io watcher and clean up
+  if (len == 0) {
+    ev_io_stop(loop, &w->io);
+    unlink_client(w); 
+    free(w);
+#ifdef DEBUG
+    puts("client disconnect");
+    print_clients();
+#endif
+  }
+
+  // Actuall data read, use associated function to digest the message
+  else {
+    buffer[len] = 0;
+    w->msg_consume(w, buffer, len);
   }
 }
 
@@ -147,8 +153,12 @@ void detect_client(ev_sock *w, const char *msg, const int len) {
  * len: length of msg
  */
 void native_client_consumer(ev_sock *w, const char *msg, const int len) {
-  puts("Incoming message from native client");
-  broadcast(msg, len);
+#ifdef DEBUG
+  char tmp[1024];
+  snprintf(tmp, len, msg);
+  printf("Incoming message from native client: %s\n", tmp);
+#endif
+  player_control(w, msg, len);
 }
 
 /*
@@ -161,7 +171,11 @@ void native_client_consumer(ev_sock *w, const char *msg, const int len) {
  * len: length of msg
  */
 void native_client_producer(ev_sock *w, const char *msg, const int len) {
-  printf("native_client_produce event: %s\n", msg);
+#ifdef DEBUG
+  char tmp[1024];
+  snprintf(tmp, len, msg);
+  printf("native_client_produce event: %s\n", tmp);
+#endif
   write(w->io.fd, msg, (size_t) len);
 }
 
@@ -203,7 +217,7 @@ int setup_socket(const int port) {
 /*
  * Function: main
  * --------------
- * Nothing much to say about this one.
+ * Do initializations and start the libev main loop.
  */
 int main (void) {
 #ifdef DEBUG
@@ -217,6 +231,13 @@ int main (void) {
   ev_io_start(loop, &listening_sock_watcher.io);
 
   http_setup();
+
+  player_info.status = 0;
+  player_info.title = NULL;
+  player_info.url_public = NULL;
+  player_info.url_stream = NULL;
+  player_info.duration = 0;
+  player_info.position = 0;
 
 #ifdef DEBUG
   puts("starting event loop");
