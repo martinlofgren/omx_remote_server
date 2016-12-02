@@ -5,42 +5,29 @@
     <meta charset="UTF-8">
     <title>OMXRemote</title>
     <style type="text/css">
-      #msg_box {
-        border: 1px solid black;
-        height: 200px;
-        width: 300px;
-        padding: 5px;
-        font: 10px verdana;
-      }
     </style>
   </head>
   <body>
     <h2>omx_remote_server</h2>
     
-    <div id="msg_box"></div>
-    <input type="text" id="textinput">
-    <button id="testbutton">Send</button>
+    <p>
+      Title: <span id="title"></span>
+    </p>
+    <p>
+      Info url: <span id="info-url"></span>
+    </p>
+    <p>
+      Stream url: <span id="stream-url"></span>
+    </p>
+    <p>
+      <span id="position"></span>/<span id="duration"></span>
+    </p>
+    
+    <input type="text" id="textinput" placeholder="Enter url...">
+    <button id="stopButton">Stop</button>
+    <button id="playPauseButton">Play</button>
   </body>
 
-  <script>
-    var sock = new WebSocket("ws://localhost:12321/ws");
-    var testButton = document.getElementById("testbutton");
-
-    testButton.addEventListener("click", function(e) {
-      t = document.getElementById("textinput");
-      if (t.value) {
-        sock.send(t.value);
-      }
-    }, false);
-
-    sock.addEventListener("message", function(e) {
-      console.log("Got message: " + e.data);
-      var parent = document.getElementById("msg_box");
-      var p = document.createElement("p");
-      var newContent = document.createTextNode(e.data);
-      p.appendChild(newContent);
-      parent.appendChild(p);
-    }, false);
-  </script>
+  <script src="script.js">
 </html>
 

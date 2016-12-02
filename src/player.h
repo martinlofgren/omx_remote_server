@@ -16,6 +16,7 @@ typedef struct player {
   unsigned long position;
 } player;
 
+void player_update_cb (EV_P_ ev_timer *w, int revents);
 void player_control(ev_sock *w, const char* msg, const int len);
 
 #endif // OMX_REMOTE_SERVER_PLAYER_H

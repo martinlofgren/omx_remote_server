@@ -13,7 +13,6 @@
 #include "ev_sock.h"
 #include "http.h"
 #include "main.h"
-#include "ws.h"
 #include "player.h"
 
 #define DEBUG
@@ -100,23 +99,19 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
 
   // Client disconnect, stop io watcher and clean up
   if (len == 0) {
-    unlink_client(w); 
-    close(w->io.fd);
-    ev_io_stop(loop, &w->io);
-    free(w);
 #ifdef DEBUG
     puts("client disconnect");
     print_clients();
 #endif
+    unlink_client(w); 
+    close(w->io.fd);
+    ev_io_stop(loop, &w->io);
+    free(w);
   }
 
   // Actual data read, use associated function to digest the message
   else {
-    if (w->msg_consume) {
-      buffer[len] = 0;
-      w->msg_consume(w, buffer, len);
-    }
-    else {
+    if (!(w->msg_consume)) {
       if (is_http_connection(buffer)) {
 	w->msg_consume = http_client_consumer;
 	w->msg_produce = NULL;
@@ -126,11 +121,20 @@ static void client_sock_cb(struct ev_loop *loop, ev_io *w_, int revents) {
 	w->msg_produce = native_client_producer;
       }
       else {
-	unlink_client(w);
+	puts("1");
+	unlink_client(w);	
+	puts("2");
 	close(w->io.fd);
+	puts("3");
 	ev_io_stop(loop, &w->io);
+	puts("4");
 	free(w);
+	puts("5");
       }
+      buffer[len] = 0;
+      w->msg_consume(w, buffer, len);
+    } 
+    if (w->msg_consume) {
       buffer[len] = 0;
       w->msg_consume(w, buffer, len);
     }
@@ -237,6 +241,11 @@ int main (void) {
   ev_io_init(&listening_sock_watcher.io, listening_sock_cb, sock_fd, EV_READ | EV_WRITE);
   ev_io_start(loop, &listening_sock_watcher.io);
 
+  ev_timer player_update_watcher;
+  ev_init (&player_update_watcher, player_update_cb);
+  player_update_watcher.repeat = 1.0;
+  ev_timer_again (loop, &player_update_watcher);
+  
   http_setup();
 
   player_info.status = 0;

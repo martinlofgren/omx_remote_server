@@ -9,7 +9,10 @@ length($0) > 1 {
     gsub("[ ]+", " ");
     gsub("[ ]+<", "<");
     gsub(">[ ]+", ">");
-
+    gsub(";[ ]+", ";");
+    gsub("[ ]+=", "=");
+    gsub("=[ ]+", "=");
+    
     # Print the line 
     print($0);
 }

@@ -6,19 +6,27 @@
 #include <stdlib.h> // malloc()
 #include <ctype.h>
 #include <regex.h>
+#include <fcntl.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <ev.h>
 
 #include "ev_sock.h"
 #include "http.h"
 #include "html.h"
-#include "header_hashes.h"
+#include "macros.h"
 #include "hash.h"
-#include "ws.h"
+#include "config.h"
+
+static char* http_version_1_1 = "HTTP/1.1";
+static char* http_status_200 = "200 OK";
+static char* http_status_404 = "404 Not Found";
+static char* http_status_501 = "501 Not Implemented";
+static char* http_content_type_text_html = "text/html";
 
 /*
- * Regex definitions used to identify and HTTP messages and parse them.
+ * Regex definitions used to identify HTTP messages and parse them.
  */
 #define REGEX_REQUEST_LINE "([[:alpha:]]+)[[:space:]]*(/[.[:alnum:]|/]*)[[:space:]]*(HTTP/[0-9].[0-9])"
 #define REGEX_HEADER_LINE "([[:alpha:]-]+)[[:space:]]*:[[:space:]]*(.*)"
@@ -69,12 +77,12 @@
   macro(SEC_WEBSOCKET_KEY)
   
 #define BUILD_HEADER_LINE(field)					\
-  case HTTP ## _ ## field ## _ ## HASH:					\
-  req->header.HTTP ## _ ## field ## _ ## NAME = strndup(OFFSET((char*)buf, 2), LEN(2) - 2); \
+  case HEADER ## _ ## field ## _ ## HASH:					\
+  req->header.HEADER ## _ ## field ## _ ## NAME = strndup(OFFSET((char*)buf, 2), LEN(2) - 2); \
   break
 #define CLEAN_HEADER_LINE(field)			\
-  if (request.header.HTTP ## _ ## field ## _ ## NAME)		\
-    free(request.header.HTTP ## _ ## field ## _ ## NAME)
+  if (request.header.HEADER ## _ ## field ## _ ## NAME)		\
+    free(request.header.HEADER ## _ ## field ## _ ## NAME)
 #define OFFSET(str, n) str + match[n].rm_so
 #define LEN(n) match[n].rm_eo - match[n].rm_so
 
@@ -187,8 +195,8 @@ static void http_parse(http_request* req, const char* msg) {
 	  req->request_line.version);
 
 #define PRINT_DEBUG(str)						\
-  if ( req->header.HTTP ## _ ## str ## _ ## NAME )			\
-    printf(#str": %s\n", req->header.HTTP ## _ ## str ## _ ## NAME )
+  if ( req->header.HEADER ## _ ## str ## _ ## NAME )			\
+    printf(#str": %s\n", req->header.HEADER ## _ ## str ## _ ## NAME )
   APPLY_REQ_LINE(PRINT_DEBUG);
   printf("---[ end request parse results ]---\n\n");
 #endif
@@ -204,30 +212,123 @@ static void http_parse(http_request* req, const char* msg) {
  * req: the request structure to react on.
  */
 static void http_respond(http_response* res, http_request* req) {
-  if (!strcasecmp("GET", req->request_line.method)) {
-    if (!strcmp("/", req->request_line.uri)) {
-      res->status_line.version = "HTTP/1.1";
-      res->status_line.status = "200 OK";
-      res->body = (char*) www_client;
-      res->headers.content_type = "text/html";
-      res->headers.content_length = strlen(res->body);
+  if (!strncmp("/media/", req->request_line.uri, 7)) {
+    if (!strncmp("title", req->request_line.uri + 7, 5)) {
+      if (!strcasecmp("GET", req->request_line.method)) {
+	
+      }
+      else {
+	res->status_line.version = http_version_1_1;
+	res->status_line.status = http_status_501;
+      }
     }
-    else if (!strncmp("/ws", req->request_line.uri, 3)) {
-      res->status_line.version = "HTTP/1.1";
-      res->status_line.status = "101 Switching Protocols";
-      res->headers.upgrade = "websocket";
-      res->headers.connection = "Upgrade";
-      char* accept = ws_accept_string(req->header.sec_websocket_key);
-      res->headers.sec_websocket_accept = accept;
+    if (!strncmp("url-stream", req->request_line.uri + 7, 10)) {
+      if (!strcasecmp("GET", req->request_line.method)) {
+	
+      }
+      else if (!strcasecmp("POST", req->request_line.method)) {
+	
+      }
+      else {
+	res->status_line.version = http_version_1_1;
+	res->status_line.status = http_status_501;
+      }
     }
-    else {
-      res->status_line.version = "HTTP/1.1";
-      res->status_line.status = "404 Not Found";
+    if (!strncmp("url-info", req->request_line.uri + 7, 8)) {
+      if (!strcasecmp("GET", req->request_line.method)) {
+	
+      }
+      else if (!strcasecmp("POST", req->request_line.method)) {
+	
+      }
+      else {
+	res->status_line.version = http_version_1_1;
+	res->status_line.status = http_status_501;
+      }
+    }
+    if (!strncmp("duration", req->request_line.uri + 7, 8)) {
+      if (!strcasecmp("GET", req->request_line.method)) {
+	
+      }
+      else {
+	res->status_line.version = http_version_1_1;
+	res->status_line.status = http_status_501;
+      }
+    }
+  }
+  if (!strncmp("/player/", req->request_line.uri, 8)) {
+    if (!strncmp("status", req->request_line.uri + 8, 6)) {
+      if (!strcasecmp("GET", req->request_line.method)) {
+	
+      }
+      else if (!strcasecmp("POST", req->request_line.method)) {
+	
+      }
+      else {
+	res->status_line.version = http_version_1_1;
+	res->status_line.status = http_status_501;
+      }
+    }
+    if (!strncmp("position", req->request_line.uri + 8, 8)) {
+      if (!strcasecmp("GET", req->request_line.method)) {
+	
+      }
+      else if (!strcasecmp("POST", req->request_line.method)) {
+	
+      }
+      else {
+	res->status_line.version = http_version_1_1;
+	res->status_line.status = http_status_501;
+      }
+    }
+  }
+  else if (!strncmp("/", req->request_line.uri, 1)) {
+    if (!strcasecmp("GET", req->request_line.method)) {
+      // Get absolute filename
+      char* filename = malloc(512 * sizeof(char)); // TODO: Calculate accurate length instead
+      strcpy(filename, static_basedir);
+      if (strlen(req->request_line.uri) == 1) {
+	// If asked for "/", serve "/index.html"
+	strcpy(filename + strlen(static_basedir), "/index.html");
+      } else {
+	// Serve the file asked for
+	strcpy(filename + strlen(static_basedir), req->request_line.uri);
+      }
+
+      FILE* file;
+      file = fopen(filename, "r");
+      if (file) {
+	// Get length of file
+	int len;
+	fseek(file, 0L, SEEK_END);
+	len = ftell(file);
+	rewind(file);
+
+	// Allocate body string, read file and populate body string
+	res->body = malloc(len * sizeof(char));
+	char* fp;
+	fp = res->body;
+	while((*(fp++) = fgetc(file), !feof(file))) {
+	  ;
+	}
+	*fp = 0;
+	fclose(file);
+	  
+	// Build relevant headers
+	res->status_line.version = http_version_1_1;
+	res->status_line.status = http_status_200;
+	res->headers.content_type = http_content_type_text_html;
+	res->headers.content_length = strlen(res->body);
+      } else {
+	res->status_line.version = http_version_1_1;
+	res->status_line.status = http_status_404;
+      }
+      free(filename);
     }
   }
   else {
-    res->status_line.version = "HTTP/1.1";
-    res->status_line.status = "501 Not Implemented";
+    res->status_line.version = http_version_1_1;
+    res->status_line.status = http_status_501;
   }
 }
 
@@ -292,15 +393,16 @@ static void http_create_response_msg(ev_sock *w, http_response* res) {
   if (res->body)
     pos += sprintf(buf+pos, "%s\r\n", res->body);
 
-  
 #ifdef DEBUG
   printf("pos: %d\n", pos);
 #endif
   
 #ifdef DEBUG
-  printf("\n---[ sent response ]---\n%s---[end send response]---\n\n", buf);
+  char tmp[4096];
+  snprintf(tmp, pos-1, buf);
+  printf("\n---[ sent response ]---\n%s---[end send response]---\n\n", tmp);
 #endif
-  write(w->io.fd, buf, (size_t) pos);
+  write(w->io.fd, buf, (size_t) pos - 1);
   free(buf);
 }
 
@@ -329,15 +431,10 @@ void http_client_consumer(ev_sock *w, const char *msg, const int len) {
   http_respond(&response, &request);
   http_create_response_msg(w, &response);
 
-  if (response.headers.sec_websocket_accept) {
-    puts("UPGRADE TO WEBSOCKET");
-    w->msg_consume = ws_client_consumer;
-    w->msg_produce = ws_client_producer;
-  }
-  
   // Clean up
   APPLY_REQ_LINE(CLEAN_HEADER_LINE);
   free(response.headers.sec_websocket_accept);
+  free(response.body);
   
 #ifdef DEBUG
   puts("++++++[ exit http_client ]++++++");

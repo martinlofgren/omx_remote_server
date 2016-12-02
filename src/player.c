@@ -10,6 +10,12 @@ extern player player_info;
 #define STREAM_INFO 1
 #define STREAM_STATUS 2
 
+static char* status_string[] = {
+  "stopped",
+  "playing",
+  "paused"
+};
+
 struct info {
   char* data;
   int len;
@@ -31,21 +37,10 @@ struct info reply (const int info) {
 		      player_info.duration);
   }
   else if (info == STREAM_STATUS) {
-    char* status_string;
-    switch (player_info.status) {
-    case PLAYER_STATUS_STOPPED:
-      status_string = "stopped";
-      break;
-    case PLAYER_STATUS_PLAYING:
-      status_string = "playing";
-      break;
-    case PLAYER_STATUS_PAUSED:
-      status_string = "paused";
-    }
     ret.len = sprintf(ret.data,
 		      "status: %s\n"
 		      "position: %lu\n",
-		      status_string,
+		      status_string[player_info.status],
 		      player_info.position);
   }
   else {
@@ -83,6 +78,12 @@ char* get_args(const char* msg, const int offset, const int len) {
     cp++;
 
   return cp;
+}
+
+void player_update_cb (EV_P_ ev_timer *w, int revents) {
+  if (player_info.status == PLAYER_STATUS_PLAYING) {
+    player_info.position += 1;
+  };
 }
 
 void player_control(ev_sock *w, const char* msg, const int len) {
